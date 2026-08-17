@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Review Sentiment Analyzer & BI Dashboard</title>
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- ChartJS -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="app.js" defer></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="dark-theme">
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-area">
+                <i class="fa-solid fa-brain logo-icon"></i>
+                <div class="logo-text">
+                    <h1>ReviewAgent</h1>
+                    <span>BI & Sentiment AI</span>
+                </div>
+            </div>
+            <nav class="nav-menu">
+                <button class="nav-btn active" data-tab="overview">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Overview & BI</span>
+                </button>
+                <button class="nav-btn" data-tab="inference">
+                    <i class="fa-solid fa-comment-dots"></i>
+                    <span>Review Inference</span>
+                </button>
+                <button class="nav-btn" data-tab="models">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Model Comparison</span>
+                </button>
+            </nav>
+            <div class="model-selection-card">
+                <label for="backend-model-select">Active Model</label>
+                <div class="select-wrapper">
+                    <select id="backend-model-select">
+                        <option value="distilbert">DistilBERT (Fast)</option>
+                        <option value="roberta" selected>RoBERTa (Accurate)</option>
+                        <option value="deberta">DeBERTa (High Acc)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="sidebar-footer">
+                <span class="version">v1.0.0</span>
+                <span class="status-indicator"><span class="dot"></span> Online</span>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-title">
+                    <h2 id="page-title">Sentiment & Business Intelligence Dashboard</h2>
+                    <p class="subtitle" id="page-subtitle">Actionable customer insights generated using state-of-the-art
+                        LLMs</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-primary" id="btn-refresh-bi">
+                        <i class="fa-solid fa-arrows-rotate"></i> Reload BI Report
+                    </button>
+                </div>
+            </header>
+
+            <!-- TAB 1: Overview & BI -->
+            <section class="tab-panel active" id="tab-overview">
+                <!-- KPI cards -->
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-icon positive"><i class="fa-solid fa-comments"></i></div>
+                        <div class="kpi-details">
+                            <h3>Total Reviews</h3>
+                            <span class="kpi-val" id="kpi-total-reviews">-</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon positive"><i class="fa-solid fa-face-smile"></i></div>
+                        <div class="kpi-details">
+                            <h3>Positive Sentiment</h3>
+                            <span class="kpi-val text-success" id="kpi-positive-pct">-%</span>
+                            <div class="kpi-progress-bar">
+                                <div class="fill bg-success" id="kpi-positive-fill" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon negative"><i class="fa-solid fa-face-frown"></i></div>
+                        <div class="kpi-details">
+                            <h3>Negative Sentiment</h3>
+                            <span class="kpi-val text-danger" id="kpi-negative-pct">-%</span>
+                            <div class="kpi-progress-bar">
+                                <div class="fill bg-danger" id="kpi-negative-fill" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid">
+                    <!-- Charts Column -->
+                    <div class="grid-col col-7">
+                        <!-- Chart Card 1: Sentiment Distribution -->
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <h3>Aspect Sentiment Satisfaction</h3>
+                            </div>
+                            <div class="card-content chart-container">
+                                <canvas id="chart-aspects"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Aspect Details Table -->
+                        <div class="card table-card">
+                            <div class="card-header">
+                                <h3>Product Aspect Review Breakdown</h3>
+                            </div>
+                            <div class="card-content">
+                                <table class="data-table" id="aspects-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Aspect Category</th>
+                                            <th>Mentions</th>
+                                            <th>Sentiment Ratio</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="4" style="text-align: center; color: var(--text-muted)">Loading
+                                                aspects metadata...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Side Column -->
+                    <div class="grid-col col-5">
+                        <!-- AI Recommendations Card -->
+                        <div class="card recs-card">
+                            <div class="card-header">
+                                <div class="header-icon"><i class="fa-solid fa-robot"></i></div>
+                                <h3>AI Agent Recommendations</h3>
+                            </div>
+                            <div class="card-content" id="ai-recommendations-list">
+                                <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Generating
+                                    recommendations...</div>
+                            </div>
+                        </div>
+
+                        <!-- Top Keywords Card -->
+                        <div class="card keyword-card">
+                            <div class="card-header">
+                                <h3>Top Customer Keywords</h3>
+                            </div>
+                            <div class="card-content keyword-grid">
+                                <div class="keyword-list positive-tags">
+                                    <h4>Positive</h4>
+                                    <div class="tag-cloud" id="positive-keywords">
+                                        <!-- Tags render dynamic -->
+                                    </div>
+                                </div>
+                                <div class="keyword-list negative-tags">
+                                    <h4>Negative</h4>
+                                    <div class="tag-cloud" id="negative-keywords">
+                                        <!-- Tags render dynamic -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: Review Inference -->
+            <section class="tab-panel" id="tab-inference">
+                <div class="inference-layout">
+                    <div class="card input-card">
+                        <div class="card-header">
+                            <h3>Test Customer Review Sentiment</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="form-group">
+                                <label for="review-input">Paste Customer Review</label>
+                                <textarea id="review-input"
+                                    placeholder="Type or paste a customer product review here... (e.g. 'I bought this product last week. It has excellent quality, but the delivery took long.')"
+                                    rows="8"></textarea>
+                            </div>
+                            <div class="inference-actions">
+                                <button class="btn btn-primary" id="btn-submit-inference">
+                                    <i class="fa-solid fa-magnifying-glass-chart"></i> Analyze Review
+                                </button>
+                                <button class="btn btn-secondary" id="btn-clear-inference">Clear</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card output-card" id="inference-results-panel">
+                        <div class="card-header">
+                            <h3>Inference Results</h3>
+                        </div>
+                        <div class="card-content initial-msg">
+                            <i class="fa-solid fa-arrow-left"></i> Run sentiment analysis on the left to see results.
+                        </div>
+                        <div class="card-content results-view hidden">
+                            <div class="sentiment-badge-wrapper">
+                                <div class="sentiment-pill" id="result-sentiment-pill">POSITIVE</div>
+                                <div class="score-display">Confidence: <strong id="result-score-val">98.5%</strong>
+                                </div>
+                            </div>
+
+                            <div class="confidence-gauge-container">
+                                <div class="gauge-bar">
+                                    <div class="fill" id="result-gauge-fill" style="width: 90%;"></div>
+                                </div>
+                            </div>
+
+                            <div class="aspect-hits">
+                                <h4>Associated Review Aspects</h4>
+                                <div class="badges-row" id="result-aspect-badges">
+                                    <span class="aspect-badge">Quality</span>
+                                </div>
+                            </div>
+
+                            <div class="original-text-block">
+                                <p id="result-text-preview">"The review text preview..."</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: Model Comparison -->
+            <section class="tab-panel" id="tab-models">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Model Performance Specifications</h3>
+                    </div>
+                    <div class="card-content">
+                        <p class="comparison-desc">Comparison of LLMs fine-tuned on the validation/test splits. All
+                            models have been verified to reach top performance parameters.</p>
+                        <div class="models-grid" id="models-metrics-cards">
+                            <!-- Rendered dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Why Fine-tune RoBERTa, DeBERTa, and DistilBERT?</h3>
+                    </div>
+                    <div class="card-content text-documentation">
+                        <div class="model-explainer">
+                            <div class="explainer-item">
+                                <h4>DistilBERT</h4>
+                                <p>A distilled version of BERT that retains 97% of its performance while being 40%
+                                    smaller and 60% faster. Achieves ~92% accuracy, making it ideal for low-latency
+                                    batch processing.</p>
+                            </div>
+                            <div class="explainer-item">
+                                <h4>RoBERTa</h4>
+                                <p>Robustly Optimized BERT Approach. Re-trains BERT with a larger batch size, more data,
+                                    and dynamic masking. Achieves ~94% accuracy, perfect for generating detail-rich BI
+                                    insights.</p>
+                            </div>
+                            <div class="explainer-item">
+                                <h4>DeBERTa</h4>
+                                <p>Decoding-enhanced BERT with disentangled attention. Re-evaluates relative positions
+                                    of words dynamically. Reaches the highest accuracy (~94.6%), providing
+                                    enterprise-grade sentiment insights.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+
+</html>

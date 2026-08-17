@@ -1,0 +1,16 @@
+# Python/Uvicorn cache
+__pycache__/
+*.pyc
+
+# Local review datasets (excluding large >100MB files from git tracking)
+Dataset/
+
+# Temp test files and logs
+*verify*output*
+*verify_live_run.txt
+output.txt
+temp_verify_live_output.txt
+
+# Local OS files
+.DS_Store
+Thumbs.db
