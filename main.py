@@ -74,9 +74,10 @@ class SentimentModelWrapper:
             else:
                 self.model_labels[model_name] = LABEL_MAP
 
-            pipe = pipeline("sentiment-analysis", model=model, tokenizer=tokenizer, device=-1)
+            device = 0 if torch.cuda.is_available() else -1
+            pipe = pipeline("sentiment-analysis", model=model, tokenizer=tokenizer, device=device)
             self.pipelines[model_name] = pipe
-            print(f"[✓] Model '{model_name}' loaded successfully.")
+            print(f"[✓] Model '{model_name}' loaded successfully (device={device}).")
             return pipe
         except Exception as e:
             raise RuntimeError(
@@ -117,6 +118,42 @@ class SentimentModelWrapper:
             return {"sentiment": sentiment, "score": float(score)}
         except Exception as e:
             raise RuntimeError(f"Prediction failed for model '{model_name}': {str(e)}")
+
+    def predict_batch(self, texts: List[str], model_name: str) -> List[Dict]:
+        """
+        Runs batch predictions using the fine-tuned model.
+        No fallback — returns an error if the model is unavailable.
+        """
+        pipe = self.load_pipeline(model_name)
+        try:
+            truncated_texts = [t[:512] for t in texts]
+            results = pipe(truncated_texts, batch_size=32)
+            
+            parsed_results = []
+            id2label = self.model_labels.get(model_name, LABEL_MAP)
+            
+            for res in results:
+                label = res["label"]
+                score = res["score"]
+                
+                lbl_lower = label.lower()
+                if "pos" in lbl_lower or "label_1" in lbl_lower:
+                    sentiment = "POSITIVE"
+                elif "neg" in lbl_lower or "label_0" in lbl_lower:
+                    sentiment = "NEGATIVE"
+                elif label in id2label.values():
+                    sentiment = label.upper()
+                else:
+                    try:
+                        label_id = int(label.split("_")[-1])
+                        mapped = id2label.get(label_id, id2label.get(str(label_id), "UNKNOWN"))
+                        sentiment = mapped.upper()
+                    except (ValueError, KeyError):
+                        sentiment = "POSITIVE" if score > 0.5 else "NEGATIVE"
+                parsed_results.append({"sentiment": sentiment, "score": float(score)})
+            return parsed_results
+        except Exception as e:
+            raise RuntimeError(f"Batch prediction failed for model '{model_name}': {str(e)}")
 
 
 model_agent = SentimentModelWrapper()
@@ -208,56 +245,69 @@ def batch_analyze(req: BatchAnalyzeRequest):
     if not req.reviews:
         raise HTTPException(status_code=400, detail="Reviews list cannot be empty.")
 
-    try:
-        _ = model_agent.load_pipeline(req.model)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-    except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    valid_indices = []
+    valid_texts = []
+    for idx, text in enumerate(req.reviews):
+        if text.strip():
+            valid_indices.append(idx)
+            valid_texts.append(text)
 
-    results = []
+    results = [{"text": t, "sentiment": "ERROR", "score": 0.0, "error": "Not processed"} for t in req.reviews]
+
+    if valid_texts:
+        try:
+            preds = model_agent.predict_batch(valid_texts, req.model)
+            for v_idx, text, pred in zip(valid_indices, valid_texts, preds):
+                sentiment = pred["sentiment"]
+                score = pred["score"]
+                aspects = detect_aspects(text, sentiment)
+                results[v_idx] = {
+                    "text": text,
+                    "sentiment": sentiment,
+                    "score": score,
+                    "aspects": aspects
+                }
+        except Exception as e:
+            for v_idx, text in zip(valid_indices, valid_texts):
+                try:
+                    res = model_agent.predict(text, req.model)
+                    results[v_idx] = {
+                        "text": text,
+                        "sentiment": res["sentiment"],
+                        "score": res["score"],
+                        "aspects": detect_aspects(text, res["sentiment"])
+                    }
+                except Exception as ex:
+                    results[v_idx] = {
+                        "text": text,
+                        "sentiment": "ERROR",
+                        "score": 0.0,
+                        "error": str(ex)
+                    }
+
     positive_count = 0
     negative_count = 0
     aspect_summary = {k: {"pos": 0, "neg": 0, "total": 0} for k in ASPECTS.keys()}
 
-    for text in req.reviews:
-        if not text.strip():
+    for res in results:
+        if res.get("sentiment") == "ERROR":
             continue
-        try:
-            res = model_agent.predict(text, req.model)
-            is_pos = res["sentiment"] == "POSITIVE"
-            if is_pos:
-                positive_count += 1
-            else:
-                negative_count += 1
+        is_pos = res["sentiment"] == "POSITIVE"
+        if is_pos:
+            positive_count += 1
+        elif res["sentiment"] == "NEGATIVE":
+            negative_count += 1
 
-            aspects = detect_aspects(text, res["sentiment"])
+        text_lower = res["text"].lower()
+        for aspect_name, aspect_info in ASPECTS.items():
+            if any(kw in text_lower for kw in aspect_info["keywords"]):
+                aspect_summary[aspect_name]["total"] += 1
+                if is_pos:
+                    aspect_summary[aspect_name]["pos"] += 1
+                else:
+                    aspect_summary[aspect_name]["neg"] += 1
 
-            # Update aspect summary
-            text_lower = text.lower()
-            for aspect_name, aspect_info in ASPECTS.items():
-                if any(kw in text_lower for kw in aspect_info["keywords"]):
-                    aspect_summary[aspect_name]["total"] += 1
-                    if is_pos:
-                        aspect_summary[aspect_name]["pos"] += 1
-                    else:
-                        aspect_summary[aspect_name]["neg"] += 1
-
-            results.append({
-                "text": text,
-                "sentiment": res["sentiment"],
-                "score": res["score"],
-                "aspects": aspects
-            })
-        except Exception as e:
-            results.append({
-                "text": text,
-                "sentiment": "ERROR",
-                "score": 0.0,
-                "error": str(e)
-            })
-
-    total = len(results)
+    total = len([r for r in results if r.get("sentiment") != "ERROR"])
     aspect_reports = []
     for name, data in aspect_summary.items():
         t = data["total"]
@@ -382,15 +432,25 @@ def generate_bi_report(model: str = "distilbert", limit: int = 400):
     word_freq_neg = {}
     stopwords = {"the", "a", "and", "is", "of", "to", "this", "it", "i", "was", "for", "with", "in", "but", "on", "that", "my", "you", "not", "have", "had", "as", "at"}
 
-    # Run predictions and aspect matching
-    for i, (label, text) in enumerate(reviews_batch):
-        try:
-            pred = model_agent.predict(text, model)
-        except Exception:
-            continue
+    # Batch run predictions
+    texts_only = [item[1] for item in reviews_batch]
+    try:
+        preds = model_agent.predict_batch(texts_only, model)
+    except Exception:
+        # Fallback to individual predictions if batch fails
+        preds = []
+        for text in texts_only:
+            try:
+                preds.append(model_agent.predict(text, model))
+            except Exception:
+                preds.append({"sentiment": "ERROR", "score": 0.0})
 
-        sentiment = pred["sentiment"]
-        score = pred["score"]
+    # Aspect matching and keyword processing
+    for i, ((label, text), pred) in enumerate(zip(reviews_batch, preds)):
+        sentiment = pred.get("sentiment", "ERROR")
+        score = pred.get("score", 0.0)
+        if sentiment == "ERROR":
+            continue
 
         is_pos = (sentiment == "POSITIVE")
         if is_pos:
