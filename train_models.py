@@ -181,13 +181,20 @@ def train_and_evaluate(model_name, dataset_dir, output_dir, epochs=1, batch_size
     max_length = 128
 
     print("Configuring Trainer...")
+    # Calculate warmup_steps manually
+    steps_per_epoch = len(train_dataset) // batch_size
+    if steps_per_epoch == 0:
+        steps_per_epoch = 1
+    total_steps = steps_per_epoch * epochs
+    warmup_steps = int(total_steps * warmup_ratio)
+
     training_args = TrainingArguments(
         output_dir=model_output_dir,
         num_train_epochs=epochs,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         learning_rate=learning_rate,
-        warmup_ratio=warmup_ratio,
+        warmup_steps=warmup_steps,
         weight_decay=weight_decay,
         logging_steps=50,
         eval_strategy="epoch",

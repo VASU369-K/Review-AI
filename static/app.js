@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     refreshBiBtn.addEventListener('click', () => {
-        loadBiReport();
+        loadBiReport(true);
     });
 
     // ----------------- EXPORT -----------------
@@ -166,12 +166,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ----------------- BI REPORT -----------------
-    async function loadBiReport() {
+    async function loadBiReport(refresh = false) {
         try {
             recsList.innerHTML = `<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing reviews with ${activeModel}...</div>`;
             aspectsTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted)"><i class="fa-solid fa-spinner fa-spin"></i> Running sentiment analysis...</td></tr>`;
 
-            const response = await fetch(`/api/bi-report?model=${activeModel}&limit=400`);
+            const response = await fetch(`/api/bi-report?model=${activeModel}&limit=400${refresh ? '&refresh=true' : ''}`);
             if (!response.ok) {
                 const err = await response.json().catch(() => ({}));
                 throw new Error(err.detail || 'Failed to load BI report');

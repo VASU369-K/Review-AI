@@ -36,11 +36,13 @@ def run_tests():
     try:
         metrics = test_metrics()
         for idx, (model, spec) in enumerate(metrics.items(), 1):
+            if model == "_meta":
+                continue
             print(f"{idx}. {model.upper()}:")
             print(f"  - Accuracy: {spec['accuracy']*100:.1f}%")
             print(f"  - F1-Score: {spec['f1']*100:.1f}%")
-            print(f"  - Parameter Size: {spec['parameters']}")
-            print(f"  - CPU Latency (per batch): {spec['eval_time_sec']}ms")
+            print(f"  - Parameter Size: {spec.get('parameters', spec.get('num_parameters', 'N/A'))}")
+            print(f"  - CPU Latency (per batch): {spec.get('eval_time_sec', 'N/A')}ms")
     except Exception as e:
         print(f"Failed to fetch model metrics: {e}")
 

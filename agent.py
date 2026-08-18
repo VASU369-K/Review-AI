@@ -141,38 +141,60 @@ def build_aspect_answer(bi_data: dict, question: str) -> dict:
             "recommendations": []
         }
 
-    # Sort by negative percentage (worst first)
-    sorted_aspects = sorted(aspects, key=lambda x: x.get("negative_pct", 0), reverse=True)
-    worst = sorted_aspects[0]
-    best = sorted_aspects[-1]
+    # Sort aspects by negative percentage (worst ratio) and negative count (most frequent complaint)
+    sorted_by_neg_pct = sorted(aspects, key=lambda x: x.get("negative_pct", 0.0), reverse=True)
+    sorted_by_neg_count = sorted(aspects, key=lambda x: x.get("negative_count", 0), reverse=True)
+    
+    worst_pct_aspect = sorted_by_neg_pct[0] if sorted_by_neg_pct else None
+    worst_count_aspect = sorted_by_neg_count[0] if sorted_by_neg_count else None
+    
+    # Sort for best aspect (highest positive pct)
+    sorted_by_pos_pct = sorted(aspects, key=lambda x: x.get("positive_pct", 0.0), reverse=True)
+    best = sorted_by_pos_pct[0] if sorted_by_pos_pct else None
 
     question_lower = question.lower()
-    if any(w in question_lower for w in ["worst", "complaint", "problem", "unhappy", "negative", "issue"]):
-        answer = (
-            f"\"{worst['aspect']}\" has the highest negative sentiment at {worst['negative_pct']}%. "
-            f"It was mentioned in {worst['total_mentions']} reviews."
-        )
+    
+    if "complaint" in question_lower:
+        if worst_count_aspect:
+            answer = (
+                f"The biggest/most frequent complaint is \"{worst_count_aspect['aspect']}\" "
+                f"with {worst_count_aspect['negative_count']} negative mentions."
+            )
+        else:
+            answer = "No complaints recorded."
+    elif any(w in question_lower for w in ["unhappy", "worst", "negative", "issue", "problem"]):
+        if worst_pct_aspect:
+            answer = (
+                f"Customers are most unhappy about \"{worst_pct_aspect['aspect']}\", "
+                f"which has the highest negative ratio of {worst_pct_aspect['negative_pct']}% "
+                f"({worst_pct_aspect['negative_count']} negative reviews out of {worst_pct_aspect['total_mentions']} mentions)."
+            )
+        else:
+            answer = "No negative aspect data recorded."
     elif any(w in question_lower for w in ["best", "praise", "positive", "happy", "like"]):
-        answer = (
-            f"\"{best['aspect']}\" has the highest positive sentiment at {best['positive_pct']}%. "
-            f"It was mentioned in {best['total_mentions']} reviews."
-        )
+        if best:
+            answer = (
+                f"\"{best['aspect']}\" has the highest positive sentiment at {best['positive_pct']}%. "
+                f"It was mentioned in {best['total_mentions']} reviews."
+            )
+        else:
+            answer = "No aspect data recorded."
     else:
         lines = []
-        for a in sorted_aspects:
+        for a in sorted_by_neg_pct:
             lines.append(f"• {a['aspect']}: {a['positive_pct']}% positive, {a['negative_pct']}% negative ({a['total_mentions']} mentions)")
-        answer = "Aspect breakdown (sorted by highest negative sentiment):\n" + "\n".join(lines)
+        answer = "Aspect breakdown (sorted by highest negative sentiment percentage):\n" + "\n".join(lines)
 
     return {
         "task": "Aspect Analysis",
         "tool_used": TOOLS["aspect_analysis"]["name"],
         "answer": answer,
         "supporting_data": {
-            "aspects": sorted_aspects,
-            "worst_aspect": worst["aspect"],
-            "best_aspect": best["aspect"],
+            "aspects": sorted_by_neg_pct,
+            "worst_aspect": worst_pct_aspect["aspect"] if worst_pct_aspect else "N/A",
+            "best_aspect": best["aspect"] if best else "N/A",
         },
-        "recommendations": _get_aspect_recommendations(sorted_aspects)
+        "recommendations": _get_aspect_recommendations(sorted_by_neg_pct)
     }
 
 

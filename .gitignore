@@ -26,6 +26,8 @@ models/distilbert/
 models/roberta/
 models/deberta/
 models/*/checkpoint-*/
+models/*_original_backup/
+models/*_log.json
 
 # Keep metrics.json in version control
 !models/metrics.json

@@ -43,36 +43,37 @@ class SentimentDataset(torch.utils.data.Dataset):
         return len(self.labels)
 
 
-# Define hyperparameter search space (3 configs)
+# Define hyperparameter search space (3 configs optimized for fast CPU validation)
 CONFIGS = [
     {
         "name": "config_A",
         "learning_rate": 1e-5,
-        "epochs": 2,
+        "epochs": 1,
         "warmup_ratio": 0.1,
         "weight_decay": 0.01,
-        "batch_size": 8,
-        "max_length": 128,
+        "batch_size": 4,
+        "max_length": 64,
     },
     {
         "name": "config_B",
         "learning_rate": 2e-5,
-        "epochs": 2,
+        "epochs": 1,
         "warmup_ratio": 0.05,
         "weight_decay": 0.02,
-        "batch_size": 16,
-        "max_length": 128,
+        "batch_size": 4,
+        "max_length": 64,
     },
     {
         "name": "config_C",
         "learning_rate": 5e-6,
-        "epochs": 3,
+        "epochs": 1,
         "warmup_ratio": 0.15,
         "weight_decay": 0.01,
-        "batch_size": 8,
-        "max_length": 128,
+        "batch_size": 4,
+        "max_length": 64,
     },
 ]
+
 
 
 def run_optimization(dataset_dir="Dataset", output_dir="models", sample_limit=1000, seed=42):
@@ -134,13 +135,20 @@ def run_optimization(dataset_dir="Dataset", output_dir="models", sample_limit=10
         tmp_dir = os.path.join(output_dir, f"deberta_opt_{cfg['name']}")
         os.makedirs(tmp_dir, exist_ok=True)
 
+        # Calculate warmup_steps manually
+        steps_per_epoch = len(train_dataset) // cfg["batch_size"]
+        if steps_per_epoch == 0:
+            steps_per_epoch = 1
+        total_steps = steps_per_epoch * cfg["epochs"]
+        warmup_steps = int(total_steps * cfg["warmup_ratio"])
+
         training_args = TrainingArguments(
             output_dir=tmp_dir,
             num_train_epochs=cfg["epochs"],
             per_device_train_batch_size=cfg["batch_size"],
             per_device_eval_batch_size=cfg["batch_size"],
             learning_rate=cfg["learning_rate"],
-            warmup_ratio=cfg["warmup_ratio"],
+            warmup_steps=warmup_steps,
             weight_decay=cfg["weight_decay"],
             logging_steps=50,
             eval_strategy="epoch",

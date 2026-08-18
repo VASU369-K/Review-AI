@@ -92,7 +92,9 @@ class SentimentModelWrapper:
         """
         pipe = self.load_pipeline(model_name)
         try:
-            res = pipe(text[:512])[0]
+            import torch
+            with torch.inference_mode():
+                res = pipe(text[:512])[0]
             label = res["label"]
             score = res["score"]
 
@@ -126,8 +128,10 @@ class SentimentModelWrapper:
         """
         pipe = self.load_pipeline(model_name)
         try:
+            import torch
             truncated_texts = [t[:512] for t in texts]
-            results = pipe(truncated_texts, batch_size=32)
+            with torch.inference_mode():
+                results = pipe(truncated_texts, batch_size=32)
             
             parsed_results = []
             id2label = self.model_labels.get(model_name, LABEL_MAP)
@@ -384,13 +388,17 @@ async def batch_upload(file: UploadFile = File(...), model: str = "distilbert"):
 
 
 @app.get("/api/bi-report")
-def generate_bi_report(model: str = "distilbert", limit: int = 400):
+def generate_bi_report(model: str = "distilbert", limit: int = 400, refresh: bool = False):
     """
     Examines the preprocessed test_split.csv,
     evaluates reviews up to `limit`, categorizes them into aspects,
     creates sentiment frequencies, and generates business intelligence suggestions.
     """
     global _cached_bi
+
+    # Return cached report if available and refresh is not requested
+    if not refresh and model in _cached_bi:
+        return _cached_bi[model]
 
     # Verify the model is available first
     try:
