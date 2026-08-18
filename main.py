@@ -678,6 +678,7 @@ def export_report(format: str = "json", model: str = "distilbert"):
         writer.writerow(["Positive %", summary.get("positive_ratio", 0)])
         writer.writerow(["Negative %", summary.get("negative_ratio", 0)])
         writer.writerow(["Overall Satisfaction", summary.get("overall_satisfaction", "N/A")])
+        writer.writerow(["Most Negative Aspect", summary.get("most_negative_aspect", "N/A")])
         writer.writerow(["Most Frequent Complaint", summary.get("most_frequent_complaint", "N/A")])
         writer.writerow(["Model Used", bi_data.get("model_used", "N/A")])
         writer.writerow([])
