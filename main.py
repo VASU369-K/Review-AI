@@ -463,36 +463,49 @@ def generate_bi_report(model: str = "distilbert", limit: int = 400):
             "examples": data["examples"]
         })
 
-        # Data-driven recommendations
+        # Data-driven recommendations (removed double asterisks **)
         if total_aspect > 0 and neg_pct > 40:
             if "quality" in aspect_name.lower() or "durability" in aspect_name.lower():
                 agent_recommendations.append(
-                    f"⚠️ **High Defect Rate Warning:** Quality aspect has {neg_pct}% negative sentiment across {data['neg']} reviews. "
+                    f"⚠️ High Defect Rate Warning: Quality aspect has {neg_pct}% negative sentiment across {data['neg']} reviews. "
                     "Investigate early failures, material issues, and manufacturing defects."
                 )
             elif "pric" in aspect_name.lower() or "value" in aspect_name.lower():
                 agent_recommendations.append(
-                    f"💲 **Pricing Strategy Review:** Value sentiment is {neg_pct}% negative across {data['neg']} reviews. "
+                    f"💲 Pricing Strategy Review: Value sentiment is {neg_pct}% negative across {data['neg']} reviews. "
                     "Customers feel features don't justify the cost. Consider promotional offers or bundle pricing."
                 )
             elif "support" in aspect_name.lower() or "delivery" in aspect_name.lower():
                 agent_recommendations.append(
-                    f"📦 **Shipping & Support Alert:** Delivery sentiment is {neg_pct}% negative across {data['neg']} reviews. "
+                    f"📦 Shipping & Support Alert: Delivery sentiment is {neg_pct}% negative across {data['neg']} reviews. "
                     "Review courier SLAs, packaging quality, and support response times."
                 )
             elif "usability" in aspect_name.lower() or "design" in aspect_name.lower():
                 agent_recommendations.append(
-                    f"⚙️ **Usability Improvement Needed:** Design usability is {neg_pct}% negative across {data['neg']} reviews. "
+                    f"⚙️ Usability Improvement Needed: Design usability is {neg_pct}% negative across {data['neg']} reviews. "
                     "Simplify setup instructions and create video tutorials."
                 )
 
     if not agent_recommendations:
         agent_recommendations.append(
-            "✅ **Healthy Performance:** Sentiments across all aspects are positive. Maintain current quality assurance protocols."
+            "✅ Healthy Performance: Sentiments across all aspects are positive. Maintain current quality assurance protocols."
         )
 
-    # Most frequent complaint
-    most_frequent_complaint = aspect_reports[0]["aspect"] if aspect_reports and aspect_reports[0]["negative_pct"] > 0 else "None"
+    # Most Negative Aspect = highest negative % (filtered for total > 0)
+    most_negative_aspect = "None"
+    highest_neg_pct = -1.0
+    for rep in aspect_reports:
+        if rep["total_mentions"] > 0 and rep["negative_pct"] > highest_neg_pct:
+            highest_neg_pct = rep["negative_pct"]
+            most_negative_aspect = rep["aspect"]
+
+    # Most Frequent Complaint = highest negative mention count (negative_count)
+    most_frequent_complaint = "None"
+    highest_neg_count = -1
+    for rep in aspect_reports:
+        if rep["negative_count"] > highest_neg_count:
+            highest_neg_count = rep["negative_count"]
+            most_frequent_complaint = rep["aspect"]
 
     # Overall satisfaction
     if pos_ratio >= 0.8:
@@ -512,6 +525,7 @@ def generate_bi_report(model: str = "distilbert", limit: int = 400):
             "positive_ratio": round(pos_ratio * 100, 1),
             "negative_ratio": round(neg_ratio * 100, 1),
             "overall_satisfaction": satisfaction,
+            "most_negative_aspect": most_negative_aspect,
             "most_frequent_complaint": most_frequent_complaint,
         },
         "aspect_analysis": aspect_reports,
@@ -577,8 +591,14 @@ def get_model_metrics():
                 "training_epochs": None,
             }
 
+    # Find best model is already done above. Let's find latest timestamp
+    timestamps = [m.get("trained_at", "") for name, m in metrics.items() if isinstance(m, dict) and m.get("trained_at")]
+    latest_run = max(timestamps) if timestamps else None
+
     enriched["_meta"] = {
         "best_model": best_model,
+        "best_model_metric": best_f1,
+        "latest_evaluation_run": latest_run,
         "note": "Results from latest recorded evaluation run",
     }
 

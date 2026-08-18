@@ -199,6 +199,67 @@ document.addEventListener('DOMContentLoaded', () => {
         kpiSatisfaction.innerText = data.summary.overall_satisfaction || '-';
         complaintBadge.innerText = `Top Complaint: ${data.summary.most_frequent_complaint || 'None'}`;
 
+        // Populate new KPIs
+        const kpiBestModel = document.getElementById('kpi-best-model');
+        const kpiMostNegAspect = document.getElementById('kpi-most-negative-aspect');
+        const kpiMostFreqComplaint = document.getElementById('kpi-most-frequent-complaint');
+
+        if (kpiBestModel) kpiBestModel.innerText = (data.model_used || activeModel).toUpperCase();
+        if (kpiMostNegAspect) kpiMostNegAspect.innerText = data.summary.most_negative_aspect || '-';
+        if (kpiMostFreqComplaint) kpiMostFreqComplaint.innerText = data.summary.most_frequent_complaint || '-';
+
+        // Executive Insight
+        const execInsightDoc = document.getElementById('executive-insight-content');
+        if (execInsightDoc) {
+            const hasData = data.summary.total_processed > 0;
+            if (hasData) {
+                execInsightDoc.innerHTML = `
+                    <p style="margin: 0 0 10px 0;">Based on a real-time BI analysis of <strong>${data.summary.total_processed}</strong> preprocessed customer reviews using <strong>${(data.model_used || activeModel).toUpperCase()}</strong>:</p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 5px;">
+                        <span style="background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 4px; border-left: 3px solid var(--text-success);">
+                            <strong>Overall Sentiment:</strong> ${data.summary.positive_ratio}% Positive
+                        </span>
+                        <span style="background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 4px; border-left: 3px solid var(--text-danger);">
+                            <strong>Highest Complaint Count:</strong> ${data.summary.most_frequent_complaint}
+                        </span>
+                        <span style="background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 4px; border-left: 3px solid var(--primary);">
+                            <strong>Worst Negative Aspect:</strong> ${data.summary.most_negative_aspect}
+                        </span>
+                    </div>
+                `;
+            } else {
+                execInsightDoc.innerHTML = `<p style="margin: 0; color: var(--text-muted)">No review data has been processed yet. Train models and load datasets to receive business recommendations.</p>`;
+            }
+        }
+
+        // Business Impact list
+        const impactSatisfaction = document.getElementById('impact-satisfaction');
+        const impactNegPct = document.getElementById('impact-neg-pct');
+        const impactComplaint = document.getElementById('impact-complaint');
+        const impactStrongest = document.getElementById('impact-strongest');
+        const impactPriority = document.getElementById('impact-priority');
+
+        if (impactSatisfaction) impactSatisfaction.innerText = data.summary.overall_satisfaction || 'N/A';
+        if (impactNegPct) impactNegPct.innerText = `${data.summary.negative_ratio}%`;
+        if (impactComplaint) impactComplaint.innerText = data.summary.most_frequent_complaint || 'None';
+
+        // Find aspect with highest positive %
+        let strongest = 'None';
+        if (data.aspect_analysis && data.aspect_analysis.length > 0) {
+            let maxPos = -1;
+            data.aspect_analysis.forEach(a => {
+                if (a.positive_pct > maxPos) {
+                    maxPos = a.positive_pct;
+                    strongest = a.aspect;
+                }
+            });
+        }
+        if (impactStrongest) impactStrongest.innerText = strongest;
+        if (impactPriority) {
+            impactPriority.innerText = data.summary.most_negative_aspect || 'None';
+            impactPriority.style.color = 'var(--text-danger)';
+        }
+
         // Color satisfaction
         const sat = (data.summary.overall_satisfaction || '').toLowerCase();
         if (sat === 'excellent' || sat === 'good') {
@@ -209,26 +270,20 @@ document.addEventListener('DOMContentLoaded', () => {
             kpiSatisfaction.className = 'kpi-val text-danger';
         }
 
-        // Aspect table
+        // Aspect table (6 columns)
         aspectsTableBody.innerHTML = '';
         data.aspect_analysis.forEach(item => {
             const tr = document.createElement('tr');
-            let statusBadge = '<span class="h-status success">Healthy</span>';
-            if (item.negative_pct > 50) {
-                statusBadge = '<span class="h-status danger">Critical</span>';
-            } else if (item.negative_pct > 35) {
-                statusBadge = '<span class="h-status warning">Needs Review</span>';
-            }
-
             tr.innerHTML = `
                 <td>
                     <strong>${item.aspect}</strong><br>
                     <span style="font-size: 11px; color: var(--text-muted)">${item.description}</span>
                 </td>
                 <td>${item.total_mentions}</td>
+                <td>${item.positive_count}</td>
                 <td><span class="text-success">${item.positive_pct}%</span></td>
+                <td>${item.negative_count}</td>
                 <td><span class="text-danger">${item.negative_pct}%</span></td>
-                <td>${statusBadge}</td>
             `;
             aspectsTableBody.appendChild(tr);
         });
@@ -236,7 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Aspect Chart
         if (aspectChart) aspectChart.destroy();
         const chartCanvas = document.getElementById('chart-aspects');
-        if (typeof Chart !== 'undefined') {
+        if (typeof Chart !== 'undefined' && chartCanvas) {
             const ctx = chartCanvas.getContext('2d');
             const labels = data.aspect_analysis.map(item => item.aspect);
             const posScores = data.aspect_analysis.map(item => item.positive_pct);
@@ -266,17 +321,21 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // AI Recommendations
+        // AI Recommendations (removed ** headings)
         recsList.innerHTML = '';
         data.agent_recommendations.forEach(rec => {
             const div = document.createElement('div');
             div.className = 'rec-item';
-            if (rec.includes('⚠️') || rec.includes('💲') || rec.includes('📦') || rec.includes('⚙️')) {
+
+            // Clean markdown bold tags if any slipped in
+            const cleanRec = rec.replace(/\*\*/g, '');
+
+            if (cleanRec.includes('⚠️') || cleanRec.includes('💲') || cleanRec.includes('📦') || cleanRec.includes('⚙️')) {
                 div.style.borderLeftColor = 'var(--text-warning)';
             } else {
                 div.style.borderLeftColor = 'var(--text-success)';
             }
-            div.innerHTML = `<p>${rec}</p>`;
+            div.innerHTML = `<p>${cleanRec}</p>`;
             recsList.appendChild(div);
         });
 
@@ -352,19 +411,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         resultModelName.innerText = (data.model || activeModel).toUpperCase();
 
-        // Aspects from server
+        // Aspects (Keyword-based aspect detection vs Transformer-based sentiment classification)
         aspectBadges.innerHTML = '';
         if (data.aspects && data.aspects.length > 0) {
             data.aspects.forEach(a => {
                 const badge = document.createElement('span');
                 badge.className = `aspect-badge ${a.sentiment === 'POSITIVE' ? 'aspect-pos' : 'aspect-neg'}`;
-                badge.innerText = `${a.aspect} → ${a.sentiment}`;
+                // Labeling it clearly as keyword match
+                badge.innerHTML = `<i class="fa-solid fa-tag" style="margin-right: 4px;"></i> ${a.aspect} (${a.sentiment === 'POSITIVE' ? 'Pos' : 'Neg'} keyword match)`;
                 aspectBadges.appendChild(badge);
             });
         } else {
             const badge = document.createElement('span');
             badge.className = 'aspect-badge';
-            badge.innerText = 'General Sentiment';
+            badge.innerText = 'General Sentiment (No aspect keywords matched)';
             aspectBadges.appendChild(badge);
         }
 
@@ -395,30 +455,49 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        uploadStatus.classList.remove('hidden');
-        uploadStatus.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading and analyzing ${file.name}...`;
-
-        const formData = new FormData();
-        formData.append('file', file);
-
-        try {
-            const response = await fetch(`/api/batch-upload?model=${activeModel}`, {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                throw new Error(err.detail || 'Upload failed');
+        // Validate text/review column presence and emptiness
+        const reader = new FileReader();
+        reader.onload = async function (e) {
+            const content = e.target.result;
+            const lines = content.split('\n');
+            if (lines.length <= 1) {
+                alert('CSV validation error: File is empty or lacks rows.');
+                return;
+            }
+            const headers = lines[0].toLowerCase().split(',');
+            const hasReviewCol = headers.some(h => h.trim().includes('text') || h.trim().includes('review'));
+            if (!hasReviewCol) {
+                alert('CSV validation error: File must contain a "text" or "review" column.');
+                return;
             }
 
-            const data = await response.json();
-            uploadStatus.innerHTML = `<span class="text-success"><i class="fa-solid fa-check"></i> Analyzed ${data.summary.total_processed} reviews</span>`;
-            displayBatchResults(data);
-        } catch (e) {
-            console.error(e);
-            uploadStatus.innerHTML = `<span class="text-danger"><i class="fa-solid fa-xmark"></i> ${e.message}</span>`;
-        }
+            // Proceed with upload
+            uploadStatus.classList.remove('hidden');
+            uploadStatus.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading and analyzing ${file.name}...`;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`/api/batch-upload?model=${activeModel}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err.detail || 'Upload failed');
+                }
+
+                const data = await response.json();
+                uploadStatus.innerHTML = `<span class="text-success"><i class="fa-solid fa-check"></i> Processed ${data.results.length} reviews</span>`;
+                displayBatchResults(data);
+            } catch (err) {
+                console.error(err);
+                uploadStatus.innerHTML = `<span class="text-danger"><i class="fa-solid fa-xmark"></i> ${err.message}</span>`;
+            }
+        };
+        reader.readAsText(file.slice(0, 1024)); // Read beginning of file for header validation
     }
 
     function displayBatchResults(data) {
@@ -426,14 +505,42 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsView.classList.add('hidden');
         batchResultsDiv.classList.remove('hidden');
 
+        const total = data.results.length;
+        const failed = data.results.filter(r => r.sentiment === 'ERROR').length;
+        const successful = total - failed;
         const s = data.summary;
+
+        // Custom validation check if any rows failed
+        let validationNote = '';
+        if (failed > 0) {
+            validationNote = `<div class="text-danger" style="margin-top: 10px; font-size: 13px;"><i class="fa-solid fa-triangle-exclamation"></i> Warning: ${failed} prediction(s) failed or contained malformed data. Do not skip failures.</div>`;
+        }
+
         const batchSummary = document.getElementById('batch-summary');
         batchSummary.innerHTML = `
-            <div class="batch-kpis">
-                <div class="batch-kpi"><span class="batch-kpi-val">${s.total_processed}</span><span class="batch-kpi-label">Total</span></div>
-                <div class="batch-kpi"><span class="batch-kpi-val text-success">${s.positive_count}</span><span class="batch-kpi-label">Positive (${s.positive_ratio}%)</span></div>
-                <div class="batch-kpi"><span class="batch-kpi-val text-danger">${s.negative_count}</span><span class="batch-kpi-label">Negative (${s.negative_ratio}%)</span></div>
+            <div class="batch-kpis" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px;">
+                <div class="batch-kpi" style="padding: 10px; background: rgba(255,255,255,0.02); text-align: center; border-radius: 6px;">
+                    <span class="batch-kpi-val" style="display: block; font-size: 18px; font-weight: 600;">${total}</span>
+                    <span class="batch-kpi-label" style="font-size: 11px; color: var(--text-muted);">Attempted Rows</span>
+                </div>
+                <div class="batch-kpi" style="padding: 10px; background: rgba(255,255,255,0.02); text-align: center; border-radius: 6px;">
+                    <span class="batch-kpi-val text-success" style="display: block; font-size: 18px; font-weight: 600;">${successful}</span>
+                    <span class="batch-kpi-label" style="font-size: 11px; color: var(--text-muted);">Successful</span>
+                </div>
+                <div class="batch-kpi" style="padding: 10px; background: rgba(255,255,255,0.02); text-align: center; border-radius: 6px;">
+                    <span class="batch-kpi-val text-danger" style="display: block; font-size: 18px; font-weight: 600;">${failed}</span>
+                    <span class="batch-kpi-label" style="font-size: 11px; color: var(--text-muted);">Failed</span>
+                </div>
+                <div class="batch-kpi" style="padding: 10px; background: rgba(255,255,255,0.02); text-align: center; border-radius: 6px;">
+                    <span class="batch-kpi-val text-success" style="display: block; font-size: 17px; font-weight: 600;">${s.positive_count} (${s.positive_ratio}%)</span>
+                    <span class="batch-kpi-label" style="font-size: 11px; color: var(--text-muted);">Positive</span>
+                </div>
+                <div class="batch-kpi" style="padding: 10px; background: rgba(255,255,255,0.02); text-align: center; border-radius: 6px;">
+                    <span class="batch-kpi-val text-danger" style="display: block; font-size: 17px; font-weight: 600;">${s.negative_count} (${s.negative_ratio}%)</span>
+                    <span class="batch-kpi-label" style="font-size: 11px; color: var(--text-muted);">Negative</span>
+                </div>
             </div>
+            ${validationNote}
         `;
 
         const container = document.getElementById('batch-table-container');
@@ -442,7 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <tr>
                     <td>${i + 1}</td>
                     <td>${r.text.substring(0, 80)}${r.text.length > 80 ? '...' : ''}</td>
-                    <td><span class="${r.sentiment === 'POSITIVE' ? 'text-success' : 'text-danger'}">${r.sentiment}</span></td>
+                    <td><span class="${r.sentiment === 'POSITIVE' ? 'text-success' : (r.sentiment === 'NEGATIVE' ? 'text-danger' : 'text-warning')}">${r.sentiment}</span></td>
                     <td>${(r.score * 100).toFixed(1)}%</td>
                 </tr>
             `).join('');
@@ -502,36 +609,42 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function displayAgentResult(data) {
-        agentToolName.innerText = `🔧 ${data.task || 'Analysis'}`;
-        agentModelUsed.innerText = `Model: ${(data.model_used || activeModel).toUpperCase()}`;
+        const stepQ = document.getElementById('agent-step-q');
+        const stepTask = document.getElementById('agent-step-task');
+        const stepTool = document.getElementById('agent-step-tool');
+        const stepModel = document.getElementById('agent-step-model');
+        const stepAns = document.getElementById('agent-step-ans');
+        const stepSupport = document.getElementById('agent-step-support');
+        const stepRecs = document.getElementById('agent-step-recs');
 
-        // Format answer with line breaks
-        const answerHtml = (data.answer || 'No answer available.').replace(/\n/g, '<br>');
-        agentAnswerText.innerHTML = `<div class="agent-answer-content">${answerHtml}</div>`;
+        const userQ = document.getElementById('agent-input').value.trim();
+        if (stepQ) stepQ.innerText = userQ || 'Custom Query';
+        if (stepTask) stepTask.innerText = data.task || 'Answering Query';
+        if (stepTool) stepTool.innerText = data.tool_used || 'General Chat';
+        if (stepModel) stepModel.innerText = (data.model_used || activeModel).toUpperCase();
 
-        // Supporting data
-        const sd = data.supporting_data || {};
-        if (Object.keys(sd).length > 0) {
-            let items = '';
-            for (const [key, val] of Object.entries(sd)) {
-                if (typeof val === 'object') continue; // Skip nested objects
-                items += `<div class="support-item"><span class="support-label">${key.replace(/_/g, ' ')}</span><span class="support-val">${val}</span></div>`;
-            }
-            if (items) {
-                agentSupportingData.innerHTML = `<h4>Supporting Data</h4><div class="support-grid">${items}</div>`;
+        const cleanAns = (data.answer || 'No answer available.').replace(/\*\*/g, '');
+        if (stepAns) stepAns.innerText = cleanAns;
+
+        if (stepSupport) {
+            const sd = data.supporting_data || {};
+            if (Object.keys(sd).length > 0) {
+                stepSupport.innerText = JSON.stringify(sd, null, 2);
+            } else {
+                stepSupport.innerText = 'No structured metrics returned.';
             }
         }
 
-        // Recommendations
-        const recs = data.recommendations || [];
-        if (recs.length > 0) {
-            agentRecsList.innerHTML = '<h4>Recommended Actions</h4>';
-            recs.forEach(r => {
-                const div = document.createElement('div');
-                div.className = 'rec-item';
-                div.innerHTML = `<p>${r}</p>`;
-                agentRecsList.appendChild(div);
-            });
+        if (stepRecs) {
+            const recs = data.recommendations || [];
+            if (recs.length > 0) {
+                stepRecs.innerHTML = recs.map(r => {
+                    const cleanR = r.replace(/\*\*/g, '');
+                    return `<div class="rec-item" style="margin-left: 0; border-left: 3px solid var(--primary); padding-left: 10px; margin-bottom: 6px;"><p>${cleanR}</p></div>`;
+                }).join('');
+            } else {
+                stepRecs.innerHTML = '<span style="color: var(--text-muted)">No contextual recommendations.</span>';
+            }
         }
     }
 
@@ -558,7 +671,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Show meta note
         if (data._meta) {
-            metricsNote.innerText = data._meta.note || '';
+            if (metricsNote) metricsNote.innerText = data._meta.note || '';
         }
 
         const displayTitles = {
@@ -567,19 +680,62 @@ document.addEventListener('DOMContentLoaded', () => {
             "deberta": "DeBERTa-v3"
         };
 
+        const compTableBody = document.querySelector('#model-comparison-table tbody');
+        const compMetaInfo = document.getElementById('model-meta-info-container');
+
+        if (compTableBody) {
+            compTableBody.innerHTML = '';
+            const modelsList = ['distilbert', 'roberta', 'deberta'];
+            modelsList.forEach(mKey => {
+                const tr = document.createElement('tr');
+                const mData = data[mKey];
+                if (mData && mData.accuracy !== undefined) {
+                    const isBest = (mKey === data.best_model);
+                    const statusBadge = isBest ? '<span class="h-status success">Active / Best Model</span>' : '<span class="h-status text-muted" style="background: rgba(255,255,255,0.05); color: var(--text-muted);">Available</span>';
+
+                    tr.innerHTML = `
+                        <td><strong style="text-transform: capitalize">${mKey}</strong></td>
+                        <td>${(mData.accuracy * 100).toFixed(1)}%</td>
+                        <td>${(mData.precision * 100).toFixed(1)}%</td>
+                        <td>${(mData.recall * 100).toFixed(1)}%</td>
+                        <td><strong>${(mData.f1 * 100).toFixed(1)}%</strong></td>
+                        <td>${statusBadge}</td>
+                    `;
+                } else {
+                    tr.innerHTML = `
+                        <td><strong style="text-transform: capitalize">${mKey}</strong></td>
+                        <td colspan="4" style="text-align: center; color: var(--text-danger);">Not Trained</td>
+                        <td><span class="h-status danger">Offline</span></td>
+                    `;
+                }
+                compTableBody.appendChild(tr);
+            });
+        }
+
+        if (compMetaInfo) {
+            const latestModelUpdateTime = data.roberta?.timestamp || data.distilbert?.timestamp || data.deberta?.timestamp || 'N/A';
+            compMetaInfo.innerHTML = `
+                <div style="display: flex; flex-wrap: wrap; gap: 20px; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 12px; margin-top: 8px;">
+                    <span><i class="fa-solid fa-circle-check" style="color: var(--text-success); margin-right: 4px;"></i> Recommended Model: <strong style="text-transform: capitalize; color: var(--primary);">${data.best_model || 'roberta'}</strong> (Highest F1-Score)</span>
+                    <span><i class="fa-solid fa-clock" style="margin-right: 4px;"></i> Latest Evaluation: <strong>${latestModelUpdateTime}</strong></span>
+                    <span><i class="fa-solid fa-database" style="margin-right: 4px;"></i> Metrics Source: <code>models/metrics.json</code></span>
+                </div>
+            `;
+        }
+
         for (const [key, item] of Object.entries(data)) {
-            if (key === '_meta') continue;
+            if (key === '_meta' || key === 'best_model') continue;
 
             const card = document.createElement('div');
             card.className = `model-spec-card ${key === activeModel ? 'highlighted' : ''}`;
 
             const title = displayTitles[key] || key;
-            const isBest = item.is_best;
-            const isAvailable = item.available;
-            const accVal = (item.accuracy * 100).toFixed(1);
-            const f1Val = (item.f1 * 100).toFixed(1);
-            const precVal = (item.precision * 100).toFixed(1);
-            const recVal = (item.recall * 100).toFixed(1);
+            const isBest = (key === data.best_model);
+            const isAvailable = (item.accuracy !== undefined);
+            const accVal = isAvailable ? (item.accuracy * 100).toFixed(1) : '0.0';
+            const f1Val = isAvailable ? (item.f1 * 100).toFixed(1) : '0.0';
+            const precVal = isAvailable ? (item.precision * 100).toFixed(1) : '0.0';
+            const recVal = isAvailable ? (item.recall * 100).toFixed(1) : '0.0';
 
             card.innerHTML = `
                 <div class="model-card-header">
@@ -613,9 +769,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="label">Base Model</span>
                     <span class="val" style="font-size: 12px;">${item.base_checkpoint}</span>
                 </div>` : ''}
-                ${item.trained_at ? `<div class="metric-row">
+                ${item.timestamp ? `<div class="metric-row">
                     <span class="label">Trained At</span>
-                    <span class="val" style="font-size: 11px;">${new Date(item.trained_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                    <span class="val" style="font-size: 11px;">${item.timestamp}</span>
                 </div>` : ''}
             `;
             metricsGrid.appendChild(card);

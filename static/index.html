@@ -96,6 +96,25 @@
 
             <!-- TAB 1: Overview & BI Dashboard -->
             <section class="tab-panel active" id="tab-overview">
+                <!-- Executive Insight Banner -->
+                <div class="card executive-insight-card" id="executive-insight-container"
+                    style="margin-bottom: 24px; border: 1px solid rgba(99, 102, 241, 0.25);">
+                    <div class="card-header"
+                        style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(168, 85, 247, 0.12) 100%); padding: 16px 20px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <i class="fa-solid fa-lightbulb" style="color: var(--text-warning); font-size: 20px;"></i>
+                            <h3
+                                style="margin: 0; font-family: var(--font-heading); font-size: 18px; font-weight: 600; color: var(--text-main);">
+                                Executive Insight Summary</h3>
+                        </div>
+                    </div>
+                    <div class="card-content" id="executive-insight-content"
+                        style="padding: 20px; font-size: 14px; line-height: 1.6; color: var(--text-main);">
+                        <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Synthesizing business
+                            intelligence insight data...</div>
+                    </div>
+                </div>
+
                 <!-- KPI cards -->
                 <div class="kpi-grid">
                     <div class="kpi-card">
@@ -134,6 +153,34 @@
                             <span class="kpi-val" id="kpi-satisfaction">-</span>
                         </div>
                     </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background-color: rgba(99,102,241,0.1); color: var(--primary);"><i
+                                class="fa-solid fa-award"></i></div>
+                        <div class="kpi-details">
+                            <h3>Best Model</h3>
+                            <span class="kpi-val" id="kpi-best-model">-</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background-color: rgba(239,68,68,0.1); color: var(--text-danger);">
+                            <i class="fa-solid fa-circle-down"></i>
+                        </div>
+                        <div class="kpi-details">
+                            <h3>Worst Aspect</h3>
+                            <span class="kpi-val text-danger" id="kpi-most-negative-aspect"
+                                style="font-size: 15px; font-weight:600;">-</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon"
+                            style="background-color: rgba(245,158,11,0.1); color: var(--text-warning);"><i
+                                class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="kpi-details">
+                            <h3>Top Complaint (Count)</h3>
+                            <span class="kpi-val text-warning" id="kpi-most-frequent-complaint"
+                                style="font-size: 15px; font-weight:600;">-</span>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="dashboard-grid">
@@ -161,14 +208,15 @@
                                         <tr>
                                             <th>Aspect Category</th>
                                             <th>Mentions</th>
-                                            <th>Positive</th>
-                                            <th>Negative</th>
-                                            <th>Status</th>
+                                            <th>Positive Count</th>
+                                            <th>Positive %</th>
+                                            <th>Negative Count</th>
+                                            <th>Negative %</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <tr>
-                                            <td colspan="5" style="text-align: center; color: var(--text-muted)">Loading
+                                            <td colspan="6" style="text-align: center; color: var(--text-muted)">Loading
                                                 aspects metadata...</td>
                                         </tr>
                                     </tbody>
@@ -188,6 +236,43 @@
                             <div class="card-content" id="ai-recommendations-list">
                                 <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Generating
                                     recommendations...</div>
+                            </div>
+                        </div>
+
+                        <!-- Why This Matters Card -->
+                        <div class="card business-metrics-card">
+                            <div class="card-header">
+                                <div class="header-icon"><i class="fa-solid fa-briefcase"></i></div>
+                                <h3>Why This Matters (Business Impact)</h3>
+                            </div>
+                            <div class="card-content">
+                                <ul id="business-impact-list"
+                                    style="list-style: none; padding: 0; margin: 0; line-height: 1.9; font-size: 13px; color: var(--text-main);">
+                                    <li style="margin-bottom: 8px; display: flex; justify-content: space-between;"><span
+                                            style="color: var(--text-muted);"><i class="fa-solid fa-gauge-simple-high"
+                                                style="color: var(--primary); margin-right: 8px; width: 14px;"></i>
+                                            Satisfaction:</span> <strong id="impact-satisfaction">-</strong></li>
+                                    <li style="margin-bottom: 8px; display: flex; justify-content: space-between;"><span
+                                            style="color: var(--text-muted);"><i class="fa-solid fa-face-frown-open"
+                                                style="color: var(--text-danger); margin-right: 8px; width: 14px;"></i>
+                                            Negative Feedback %:</span> <strong id="impact-neg-pct"
+                                            class="text-danger">-</strong></li>
+                                    <li style="margin-bottom: 8px; display: flex; justify-content: space-between;"><span
+                                            style="color: var(--text-muted);"><i class="fa-solid fa-circle-exclamation"
+                                                style="color: var(--text-warning); margin-right: 8px; width: 14px;"></i>
+                                            Top Complaint:</span> <strong id="impact-complaint"
+                                            style="text-align: right;">-</strong></li>
+                                    <li style="margin-bottom: 8px; display: flex; justify-content: space-between;"><span
+                                            style="color: var(--text-muted);"><i class="fa-solid fa-thumbs-up"
+                                                style="color: var(--text-success); margin-right: 8px; width: 14px;"></i>
+                                            Strongest Aspect:</span> <strong id="impact-strongest"
+                                            style="text-align: right;">-</strong></li>
+                                    <li style="margin-bottom: 8px; display: flex; justify-content: space-between;"><span
+                                            style="color: var(--text-muted);"><i class="fa-solid fa-arrow-up-wide-short"
+                                                style="color: var(--primary); margin-right: 8px; width: 14px;"></i>
+                                            Recommended Priority:</span> <strong id="impact-priority"
+                                            style="text-align: right;">-</strong></li>
+                                </ul>
                             </div>
                         </div>
 
@@ -254,13 +339,62 @@
                             </div>
                         </div>
                         <div class="card-content agent-results hidden" id="agent-results">
-                            <div class="agent-meta-row">
-                                <span class="agent-tool-badge" id="agent-tool-name">-</span>
-                                <span class="agent-model-badge" id="agent-model-used">-</span>
+                            <div class="agent-step"
+                                style="margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 12px;">
+                                <div
+                                    style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 4px;">
+                                    User Query</div>
+                                <div style="font-size: 15px; font-weight: 500; color: var(--text-main);"
+                                    id="agent-step-q">-</div>
                             </div>
-                            <div class="agent-answer-block" id="agent-answer-text"></div>
-                            <div class="agent-supporting" id="agent-supporting-data"></div>
-                            <div class="agent-recs-section" id="agent-recs-list"></div>
+                            <div class="agent-step-row" style="display: flex; gap: 12px; margin-bottom: 20px;">
+                                <div class="agent-step"
+                                    style="flex: 1; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 6px; padding: 10px 12px;">
+                                    <div
+                                        style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 4px;">
+                                        Agent Task</div>
+                                    <div style="font-size: 13px; font-weight: 600; color: var(--primary);"
+                                        id="agent-step-task">-</div>
+                                </div>
+                                <div class="agent-step"
+                                    style="flex: 1; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 6px; padding: 10px 12px;">
+                                    <div
+                                        style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 4px;">
+                                        Tool Executed</div>
+                                    <div style="font-size: 13px; font-weight: 600; color: var(--text-success);"
+                                        id="agent-step-tool">-</div>
+                                </div>
+                                <div class="agent-step"
+                                    style="flex: 1; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 6px; padding: 10px 12px;">
+                                    <div
+                                        style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 4px;">
+                                        Model Used</div>
+                                    <div style="font-size: 13px; font-weight: 600; color: var(--text-warning);"
+                                        id="agent-step-model">-</div>
+                                </div>
+                            </div>
+                            <div class="agent-step"
+                                style="margin-bottom: 20px; background: rgba(99, 102, 241, 0.05); border-left: 3px solid var(--primary); padding: 14px; border-radius: 0 8px 8px 0;">
+                                <div
+                                    style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 6px;">
+                                    Answer Summary</div>
+                                <div style="font-size: 14px; line-height: 1.6; color: var(--text-main); white-space: pre-wrap;"
+                                    id="agent-step-ans">-</div>
+                            </div>
+                            <div class="agent-step" style="margin-bottom: 20px;">
+                                <div
+                                    style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 8px;">
+                                    Supporting Data Metrics</div>
+                                <div style="font-size: 13px; font-family: monospace; background: rgba(0,0,0,0.2) !important; padding: 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.04); max-height: 250px; overflow-y: auto;"
+                                    id="agent-step-support">-</div>
+                            </div>
+                            <div class="agent-step" style="margin-bottom: 12px;">
+                                <div
+                                    style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 8px;">
+                                    Context Recommendations</div>
+                                <div style="font-size: 13px; line-height: 1.6; color: var(--text-main);"
+                                    id="agent-step-recs">-</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -360,6 +494,37 @@
                         <p class="comparison-desc">Evaluation metrics from fine-tuned models on Amazon Reviews test
                             split. <em id="metrics-note"></em></p>
                         <div class="models-grid" id="models-metrics-cards">
+                            <!-- Rendered dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table Matrix -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Model Comparison Matrix</h3>
+                    </div>
+                    <div class="card-content">
+                        <table class="data-table" id="model-comparison-table">
+                            <thead>
+                                <tr>
+                                    <th>Model</th>
+                                    <th>Accuracy</th>
+                                    <th>Precision</th>
+                                    <th>Recall</th>
+                                    <th>F1-Score</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="6" style="text-align: center; color: var(--text-muted)">Loading
+                                        comparison matrix...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="model-meta-info" id="model-meta-info-container"
+                            style="margin-top: 16px; font-size: 13px; color: var(--text-muted); line-height: 1.6;">
                             <!-- Rendered dynamically -->
                         </div>
                     </div>

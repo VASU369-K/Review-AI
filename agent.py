@@ -238,7 +238,7 @@ def build_metrics_answer(metrics_data: dict, question: str) -> dict:
     question_lower = question.lower()
     if any(w in question_lower for w in ["best", "which", "top", "highest"]):
         answer = (
-            f"The best performing model is **{best_model.upper()}** with an F1 score of {best_f1*100:.1f}%.\n\n"
+            f"The best performing model is {best_model.upper()} with an F1 score of {best_f1*100:.1f}%.\n\n"
             f"All model metrics:\n" + "\n".join(lines)
         )
     else:
