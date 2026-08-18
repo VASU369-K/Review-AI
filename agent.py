@@ -38,7 +38,7 @@ TOOLS = {
             "report", "summary", "summarize", "overview", "overall",
             "business", "intelligence", "insight", "kpi", "dashboard",
             "feedback", "customer feedback", "stats", "statistics",
-            "distribution", "breakdown"
+            "distribution", "breakdown", "trend", "pattern", "executive"
         ]
     },
     "model_metrics": {
@@ -47,7 +47,9 @@ TOOLS = {
         "triggers": [
             "model", "accuracy", "f1", "precision", "recall", "performance",
             "which model", "best model", "compare", "comparison", "benchmark",
-            "metric", "performs best", "evaluate"
+            "metric", "performs best", "evaluate", "deploy", "production",
+            "why is", "better than", "worse than", "which should", "distilbert",
+            "roberta", "deberta"
         ]
     },
     "recommendation": {
@@ -185,14 +187,23 @@ def build_bi_answer(bi_data: dict, question: str) -> dict:
     worst_aspect = sorted_aspects[0]["aspect"] if sorted_aspects else "N/A"
 
     satisfaction = summary.get('overall_satisfaction', 'N/A')
+    exec_insight = bi_data.get("executive_insight", {})
+    exec_line = ""
+    if exec_insight:
+        exec_line = (
+            f"\n• Executive Insight: {exec_insight.get('overall_sentiment', 'N/A')} sentiment, "
+            f"strongest positive aspect: {exec_insight.get('strongest_positive_aspect', 'N/A')}, "
+            f"recommended action: {exec_insight.get('recommended_action', 'N/A')}"
+        )
     answer = (
         f"Business Intelligence Summary:\n"
-        f"• Total reviews analyzed: {summary.get('total_processed', 0)}\n"
+        f"• Total reviews analyzed: {summary.get('total_processed', 0)} (attempted: {summary.get('total_attempted', summary.get('total_processed', 0))}, failed: {summary.get('failed_count', 0)})\n"
         f"• Positive sentiment: {summary.get('positive_ratio', 0)}% ({summary.get('positive_count', 0)} reviews)\n"
         f"• Negative sentiment: {summary.get('negative_ratio', 0)}% ({summary.get('negative_count', 0)} reviews)\n"
         f"• Overall satisfaction: {satisfaction}\n"
         f"• Top customer complaint: {worst_aspect}\n"
         f"• Model used: {model_used}"
+        f"{exec_line}"
     )
 
     return {
@@ -236,11 +247,19 @@ def build_metrics_answer(metrics_data: dict, question: str) -> dict:
         )
 
     question_lower = question.lower()
-    if any(w in question_lower for w in ["best", "which", "top", "highest"]):
+    if any(w in question_lower for w in ["best", "which", "top", "highest", "deploy", "production", "should"]):
         answer = (
             f"The best performing model is {best_model.upper()} with an F1 score of {best_f1*100:.1f}%.\n\n"
             f"All model metrics:\n" + "\n".join(lines)
         )
+        if any(w in question_lower for w in ["deploy", "production", "should"]):
+            answer += f"\n\nRecommendation: Deploy {best_model.upper()} to production for best inference quality."
+    elif any(w in question_lower for w in ["compare", "comparison", "vs", "versus", "difference"]):
+        answer = "Model Performance Comparison:\n" + "\n".join(lines)
+        answer += f"\n\nVerdict: {best_model.upper()} leads with the highest F1 score of {best_f1*100:.1f}%."
+    elif any(w in question_lower for w in ["why", "better", "worse"]):
+        answer = "Model Performance Comparison:\n" + "\n".join(lines)
+        answer += f"\n\n{best_model.upper()} achieves the best F1 score ({best_f1*100:.1f}%), indicating it strikes the best balance between precision and recall on the test set."
     else:
         answer = "Model Performance Comparison:\n" + "\n".join(lines)
 

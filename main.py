@@ -423,8 +423,10 @@ def generate_bi_report(model: str = "distilbert", limit: int = 400):
     if not reviews_batch:
         raise HTTPException(status_code=400, detail="Split CSV file is empty.")
 
-    total_count = len(reviews_batch)
+    total_attempted = len(reviews_batch)
     positive_model_count = 0
+    negative_model_count = 0
+    failed_count = 0
     sentiment_history = []
     aspect_counts = {k: {"pos": 0, "neg": 0, "total": 0, "examples": []} for k in ASPECTS.keys()}
 
@@ -450,11 +452,14 @@ def generate_bi_report(model: str = "distilbert", limit: int = 400):
         sentiment = pred.get("sentiment", "ERROR")
         score = pred.get("score", 0.0)
         if sentiment == "ERROR":
+            failed_count += 1
             continue
 
         is_pos = (sentiment == "POSITIVE")
         if is_pos:
             positive_model_count += 1
+        else:
+            negative_model_count += 1
 
         sentiment_history.append({
             "index": i + 1,
@@ -493,9 +498,10 @@ def generate_bi_report(model: str = "distilbert", limit: int = 400):
     top_pos_keywords = sorted(word_freq_pos.items(), key=lambda x: x[1], reverse=True)[:10]
     top_neg_keywords = sorted(word_freq_neg.items(), key=lambda x: x[1], reverse=True)[:10]
 
-    # Overall ratios
-    pos_ratio = positive_model_count / total_count if total_count > 0 else 0
-    neg_ratio = 1.0 - pos_ratio
+    # Successful predictions used as denominator for percentages
+    successful_count = positive_model_count + negative_model_count
+    pos_ratio = positive_model_count / successful_count if successful_count > 0 else 0
+    neg_ratio = negative_model_count / successful_count if successful_count > 0 else 0
 
     # Compile Aspect Analytics & Recommendations
     aspect_reports = []
@@ -523,32 +529,32 @@ def generate_bi_report(model: str = "distilbert", limit: int = 400):
             "examples": data["examples"]
         })
 
-        # Data-driven recommendations (removed double asterisks **)
+        # Data-driven recommendations (no double asterisks **)
         if total_aspect > 0 and neg_pct > 40:
             if "quality" in aspect_name.lower() or "durability" in aspect_name.lower():
                 agent_recommendations.append(
-                    f"⚠️ High Defect Rate Warning: Quality aspect has {neg_pct}% negative sentiment across {data['neg']} reviews. "
+                    f"\u26a0\ufe0f High Defect Rate Warning: Quality aspect has {neg_pct}% negative sentiment across {data['neg']} reviews. "
                     "Investigate early failures, material issues, and manufacturing defects."
                 )
             elif "pric" in aspect_name.lower() or "value" in aspect_name.lower():
                 agent_recommendations.append(
-                    f"💲 Pricing Strategy Review: Value sentiment is {neg_pct}% negative across {data['neg']} reviews. "
+                    f"\U0001f4b2 Pricing Strategy Review: Value sentiment is {neg_pct}% negative across {data['neg']} reviews. "
                     "Customers feel features don't justify the cost. Consider promotional offers or bundle pricing."
                 )
             elif "support" in aspect_name.lower() or "delivery" in aspect_name.lower():
                 agent_recommendations.append(
-                    f"📦 Shipping & Support Alert: Delivery sentiment is {neg_pct}% negative across {data['neg']} reviews. "
+                    f"\U0001f4e6 Shipping & Support Alert: Delivery sentiment is {neg_pct}% negative across {data['neg']} reviews. "
                     "Review courier SLAs, packaging quality, and support response times."
                 )
             elif "usability" in aspect_name.lower() or "design" in aspect_name.lower():
                 agent_recommendations.append(
-                    f"⚙️ Usability Improvement Needed: Design usability is {neg_pct}% negative across {data['neg']} reviews. "
+                    f"\u2699\ufe0f Usability Improvement Needed: Design usability is {neg_pct}% negative across {data['neg']} reviews. "
                     "Simplify setup instructions and create video tutorials."
                 )
 
     if not agent_recommendations:
         agent_recommendations.append(
-            "✅ Healthy Performance: Sentiments across all aspects are positive. Maintain current quality assurance protocols."
+            "\u2705 Healthy Performance: Sentiments across all aspects are positive. Maintain current quality assurance protocols."
         )
 
     # Most Negative Aspect = highest negative % (filtered for total > 0)
@@ -577,16 +583,74 @@ def generate_bi_report(model: str = "distilbert", limit: int = 400):
     else:
         satisfaction = "Poor"
 
+    # Find strongest positive aspect
+    strongest_positive = "None"
+    best_pos_pct = -1.0
+    for rep in aspect_reports:
+        if rep["total_mentions"] > 0 and rep["positive_pct"] > best_pos_pct:
+            best_pos_pct = rep["positive_pct"]
+            strongest_positive = rep["aspect"]
+
+    # Determine recommended action dynamically
+    if most_negative_aspect != "None" and highest_neg_pct > 40:
+        recommended_action = f"Improve {most_negative_aspect.lower()} — currently at {highest_neg_pct}% negative sentiment."
+    elif neg_ratio > 0.4:
+        recommended_action = "Address overall negative sentiment trend. Focus on most-complained aspects."
+    else:
+        recommended_action = "Maintain current quality standards and continue monitoring customer feedback."
+
+    # Determine overall sentiment label
+    if pos_ratio >= 0.75:
+        overall_sentiment_label = "Strongly Positive"
+    elif pos_ratio >= 0.6:
+        overall_sentiment_label = "Moderately Positive"
+    elif pos_ratio >= 0.45:
+        overall_sentiment_label = "Mixed"
+    elif pos_ratio >= 0.3:
+        overall_sentiment_label = "Moderately Negative"
+    else:
+        overall_sentiment_label = "Strongly Negative"
+
+    # Dynamic Executive Insight
+    executive_insight = {
+        "overall_sentiment": overall_sentiment_label,
+        "major_complaint": most_negative_aspect,
+        "strongest_positive_aspect": strongest_positive,
+        "recommended_action": recommended_action,
+        "satisfaction_level": satisfaction,
+        "positive_ratio": round(pos_ratio * 100, 1),
+        "negative_ratio": round(neg_ratio * 100, 1),
+    }
+
+    # Load best model from metrics.json
+    best_model_name = model
+    best_model_f1 = 0.0
+    best_model_accuracy = 0.0
+    metrics_path = os.path.join("models", "metrics.json")
+    if os.path.exists(metrics_path):
+        with open(metrics_path, 'r', encoding='utf-8') as f:
+            all_metrics = json.load(f)
+        for mname, mdata in all_metrics.items():
+            if isinstance(mdata, dict) and mdata.get("f1", 0) > best_model_f1:
+                best_model_f1 = mdata["f1"]
+                best_model_accuracy = mdata.get("accuracy", 0)
+                best_model_name = mname
+
     result = {
         "summary": {
-            "total_processed": total_count,
+            "total_attempted": total_attempted,
+            "total_processed": successful_count,
+            "failed_count": failed_count,
             "positive_count": positive_model_count,
-            "negative_count": total_count - positive_model_count,
+            "negative_count": negative_model_count,
             "positive_ratio": round(pos_ratio * 100, 1),
             "negative_ratio": round(neg_ratio * 100, 1),
             "overall_satisfaction": satisfaction,
             "most_negative_aspect": most_negative_aspect,
             "most_frequent_complaint": most_frequent_complaint,
+            "best_model": best_model_name.upper(),
+            "best_model_f1": round(best_model_f1 * 100, 1) if best_model_f1 else 0,
+            "best_model_accuracy": round(best_model_accuracy * 100, 1) if best_model_accuracy else 0,
         },
         "aspect_analysis": aspect_reports,
         "keywords": {
@@ -595,6 +659,7 @@ def generate_bi_report(model: str = "distilbert", limit: int = 400):
         },
         "sentiment_timeline": sentiment_history[:50],
         "agent_recommendations": agent_recommendations,
+        "executive_insight": executive_insight,
         "model_used": model
     }
 
@@ -715,13 +780,20 @@ def agent_endpoint(req: AgentRequest):
 
 @app.get("/api/export")
 def export_report(format: str = "json", model: str = "distilbert"):
-    """Export BI report as JSON or CSV."""
+    """Export BI report as JSON or CSV with model evaluation and executive insight."""
     bi_data = _cached_bi.get(model)
     if not bi_data:
         try:
             bi_data = generate_bi_report(model=model, limit=200)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to generate report: {str(e)}")
+
+    # Load model metrics for export
+    model_eval = {}
+    metrics_file = os.path.join("models", "metrics.json")
+    if os.path.exists(metrics_file):
+        with open(metrics_file, 'r', encoding='utf-8') as f:
+            model_eval = json.load(f)
 
     if format.lower() == "csv":
         output = io.StringIO()
@@ -732,7 +804,9 @@ def export_report(format: str = "json", model: str = "distilbert"):
         writer.writerow([])
         writer.writerow(["Summary"])
         summary = bi_data.get("summary", {})
-        writer.writerow(["Total Reviews", summary.get("total_processed", 0)])
+        writer.writerow(["Total Attempted", summary.get("total_attempted", summary.get("total_processed", 0))])
+        writer.writerow(["Successful Predictions", summary.get("total_processed", 0)])
+        writer.writerow(["Failed Predictions", summary.get("failed_count", 0)])
         writer.writerow(["Positive Count", summary.get("positive_count", 0)])
         writer.writerow(["Negative Count", summary.get("negative_count", 0)])
         writer.writerow(["Positive %", summary.get("positive_ratio", 0)])
@@ -740,11 +814,35 @@ def export_report(format: str = "json", model: str = "distilbert"):
         writer.writerow(["Overall Satisfaction", summary.get("overall_satisfaction", "N/A")])
         writer.writerow(["Most Negative Aspect", summary.get("most_negative_aspect", "N/A")])
         writer.writerow(["Most Frequent Complaint", summary.get("most_frequent_complaint", "N/A")])
+        writer.writerow(["Best Model", summary.get("best_model", "N/A")])
         writer.writerow(["Model Used", bi_data.get("model_used", "N/A")])
         writer.writerow([])
 
+        # Executive Insight
+        exec_insight = bi_data.get("executive_insight", {})
+        if exec_insight:
+            writer.writerow(["Executive Insight"])
+            writer.writerow(["Overall Sentiment", exec_insight.get("overall_sentiment", "N/A")])
+            writer.writerow(["Major Complaint", exec_insight.get("major_complaint", "N/A")])
+            writer.writerow(["Strongest Positive Aspect", exec_insight.get("strongest_positive_aspect", "N/A")])
+            writer.writerow(["Recommended Action", exec_insight.get("recommended_action", "N/A")])
+            writer.writerow([])
+
+        # Model Evaluation
+        writer.writerow(["Model Evaluation"])
+        writer.writerow(["Model", "Accuracy", "F1", "Precision", "Recall", "Test Samples", "Checkpoint"])
+        for mname in ["distilbert", "roberta", "deberta"]:
+            m = model_eval.get(mname, {})
+            if m:
+                writer.writerow([
+                    mname, m.get("accuracy", "N/A"), m.get("f1", "N/A"),
+                    m.get("precision", "N/A"), m.get("recall", "N/A"),
+                    m.get("test_samples", "N/A"), m.get("base_checkpoint", "N/A")
+                ])
+        writer.writerow([])
+
         # Aspect Analysis
-        writer.writerow(["Aspect Analysis"])
+        writer.writerow(["Aspect/Issue Analysis"])
         writer.writerow(["Aspect", "Total Mentions", "Positive %", "Negative %", "Positive Count", "Negative Count"])
         for a in bi_data.get("aspect_analysis", []):
             writer.writerow([
@@ -766,8 +864,10 @@ def export_report(format: str = "json", model: str = "distilbert"):
             headers={"Content-Disposition": "attachment; filename=bi_report.csv"}
         )
     else:
-        # JSON export
-        content = json.dumps(bi_data, indent=2, ensure_ascii=False)
+        # JSON export — include model evaluation and executive insight
+        export_data = dict(bi_data)
+        export_data["model_evaluation"] = model_eval
+        content = json.dumps(export_data, indent=2, ensure_ascii=False)
         return StreamingResponse(
             io.BytesIO(content.encode('utf-8')),
             media_type="application/json",

@@ -1,340 +1,169 @@
-# Review-AI — Customer Review Sentiment Analysis & BI Agent 🚀
+# Review-AI: AI-Powered Customer Review Sentiment Analysis & Business Intelligence Agent
 
-An AI-powered **Customer Review Sentiment Analysis and Business Intelligence Agent**, built with **fine-tuned transformer models** (DistilBERT, RoBERTa, DeBERTa) and a professional **interactive dashboard**.
+A production-ready full-stack application that leverages fine-tuned transformer models (DistilBERT, RoBERTa, DeBERTa) to analyze customer review sentiment, generate aspect-based business intelligence reports, and provide actionable recommendations through an AI agent interface.
 
-> **No heuristic fallbacks** — all inference runs through fine-tuned Hugging Face models trained on Amazon Reviews data.
-
----
-
-## 📋 Project Statement
-
-Design and develop an **AI Agent for Customer Review Sentiment Analysis and Business Intelligence Generation** that uses fine-tuned transformer models to classify customer reviews, detect product aspects, generate data-driven business recommendations, and answer natural-language business questions through an AI agent orchestrator.
-
-## 🔍 Problem
-
-Businesses receive thousands of customer reviews but lack an automated, intelligent system to:
-- Classify overall sentiment (positive/negative) at scale
-- Identify specific product aspects driving satisfaction or complaints
-- Generate actionable business recommendations from review data
-- Compare multiple ML models to choose the best-performing one
-- Allow non-technical stakeholders to ask business questions in natural language
-
-## 🎯 Objectives
-
-1. Fine-tune three transformer models (DistilBERT, RoBERTa, DeBERTa) on real Amazon Reviews data
-2. Build a production-ready FastAPI backend for sentiment inference and BI generation
-3. Create an AI Agent orchestrator that routes natural-language questions to analysis tools
-4. Develop an interactive dashboard with KPI cards, charts, and data-driven recommendations
-5. Ensure end-to-end reproducibility with fixed seeds, clear label mappings, and saved metrics
-
----
-
-## ✨ Features
-
-| Feature | Description |
-|---|---|
-| 🔬 **Fine-tuned Models** | DistilBERT, RoBERTa, DeBERTa-v3 trained on Amazon Reviews |
-| 🤖 **AI Agent** | Ask natural-language business questions; the agent routes to the correct analysis tool |
-| 📊 **BI Dashboard** | KPI cards, aspect analysis, stacked charts, keyword clouds, AI recommendations |
-| 📋 **Bulk CSV Upload** | Drag-and-drop CSV analysis for up to 500 reviews |
-| 📥 **Export Reports** | Download BI reports as JSON or CSV |
-| ⚡ **Real Metrics** | Accuracy, F1, Precision, Recall from actual evaluation runs (metrics.json) |
-| 💎 **Aspect Analysis** | Automatic detection of Quality, Pricing, Delivery, and Usability themes |
-| 🎯 **Actionable Recommendations** | Data-driven business suggestions based on real sentiment patterns |
-| 🏆 **Model Comparison** | Side-by-side comparison of all three models with Best Model indicator |
-| 🔒 **No Fake Predictions** | Missing models return clear errors instead of fake predictions |
-
----
-
-## 🏗️ Architecture
+## Project Architecture
 
 ```
 Review-AI/
-├── main.py                  # FastAPI backend (routes, model loading, BI generation)
-├── agent.py                 # AI Agent orchestrator (NLQ → tool → answer)
-├── train_models.py          # Training pipeline (fine-tune + metrics saving)
-├── preprocess_dataset.py    # Data cleaning, deduplication, and train/val/test splitting
-├── convert_to_csv.py        # Amazon fastText → CSV converter
-├── models/                  # Fine-tuned model checkpoints + metrics.json
-│   ├── distilbert/          # Fine-tuned DistilBERT checkpoint
-│   ├── roberta/             # Fine-tuned RoBERTa checkpoint
-│   ├── deberta/             # Fine-tuned DeBERTa-v3 checkpoint
-│   └── metrics.json         # Evaluation metrics for all models
-├── Dataset/                 # Preprocessed CSV splits (train/val/test)
-│   ├── train.csv            # Raw Amazon Reviews training data
-│   ├── test.csv             # Raw Amazon Reviews test data
-│   ├── train_split.csv      # 70% training split
-│   ├── val_split.csv        # 15% validation split
-│   └── test_split.csv       # 15% test/evaluation split
+├── main.py                     # FastAPI backend: inference, BI, agent, export
+├── agent.py                    # AI Agent orchestrator (NL query routing)
+├── train_models.py             # Training pipeline (HuggingFace Trainer)
+├── optimize_deberta.py         # DeBERTa hyperparameter optimization
+├── preprocess_dataset.py       # Dataset cleaning + 70/15/15 split
+├── convert_to_csv.py           # fastText → CSV converter
+├── test_all_features.py        # End-to-end test suite (9 tests)
+├── models/
+│   ├── distilbert/             # Fine-tuned DistilBERT checkpoint
+│   ├── roberta/                # Fine-tuned RoBERTa checkpoint
+│   ├── deberta/                # Fine-tuned DeBERTa checkpoint
+│   └── metrics.json            # Evaluation metrics for all models
+├── Dataset/
+│   ├── train_split.csv         # 7,000 training samples
+│   ├── val_split.csv           # 1,500 validation samples
+│   └── test_split.csv          # 1,500 held-out test samples
 ├── static/
-│   ├── index.html           # Dashboard UI (5 tabs)
-│   ├── app.js               # Frontend logic
-│   └── styles.css           # Glassmorphism dark theme
+│   ├── index.html              # Dashboard UI (5 tabs)
+│   ├── app.js                  # Frontend logic (Chart.js, API calls)
+│   └── styles.css              # Glassmorphism dark theme
 └── README.md
 ```
 
----
+## Key Features
 
-## 📦 Dataset
+### 1. Fine-Tuned Transformer Models
+- **DistilBERT** (`distilbert-base-uncased`): Lightweight, fast inference
+- **RoBERTa** (`roberta-base`): Robust performance on noisy text
+- **DeBERTa** (`microsoft/deberta-base`): Disentangled attention, highest accuracy
+- All models trained on Amazon Reviews dataset with strict train/val/test separation (70/15/15)
+- No heuristic fallbacks — all sentiment predictions come exclusively from fine-tuned models
 
-**Amazon Reviews** sentiment dataset from Kaggle:
-- **Source**: [bittlingmayer/amazonreviews](https://www.kaggle.com/datasets/bittlingmayer/amazonreviews)
-- **Format**: fastText format (`__label__1` = Negative, `__label__2` = Positive)
-- **Size**: ~4 million reviews (train: 3.6M, test: 400K)
-- **Label Mapping**: `1 → 0 (Negative)`, `2 → 1 (Positive)`
+### 2. AI Agent (Natural Language Query Interface)
+- Keyword-scored tool routing for 5 analysis tools:
+  - **Sentiment Analysis** — distribution, ratios, satisfaction
+  - **Aspect Analysis** — quality, pricing, delivery, usability, support
+  - **Business Intelligence** — executive summary with executive insight
+  - **Model Metrics** — accuracy, F1, precision, recall comparisons
+  - **Recommendations** — data-driven actionable business advice
+- Supports complex queries: "Compare all models", "Which model should I deploy?", "Why is DeBERTa better?"
 
-### Preprocessing Pipeline
+### 3. Business Intelligence Dashboard
+- Executive Insight panel with dynamic overall sentiment, major complaint, strongest positive aspect, and recommended action
+- Aspect Mention Analysis with positive/negative breakdowns and stacked bar charts
+- Failure accounting: tracks attempted, successful, and failed predictions separately
+- CSV/JSON export with model evaluation metrics, executive insight, and recommendations
 
-1. **convert_to_csv.py** — Converts fastText `.txt` files to CSV format
-2. **preprocess_dataset.py** — Cleans text (HTML removal, whitespace normalization), removes duplicates, maps labels, and splits into 70/15/15 (train/val/test) with fixed random seed (42)
+### 4. Interactive Dashboard (5 Tabs)
+| Tab | Description |
+|-----|-------------|
+| **Overview** | KPIs, executive insight, aspect chart, recommendations, keywords |
+| **AI Agent** | Natural language query interface with example chips |
+| **Review Analysis** | Single review inference + CSV batch upload |
+| **Model Comparison** | Side-by-side metrics for all 3 models with best-model indicator |
+| **Business Insights** | Detailed aspect breakdowns, positive/negative aspect bars |
 
----
+## Model Performance Results
 
-## 🧠 Models
+| Model | Accuracy | F1-Score | Precision | Recall | Test Samples | Epochs |
+|-------|----------|----------|-----------|--------|--------------|--------|
+| DistilBERT | 90.0% | 90.7% | 89.8% | 91.5% | 200 | 1 |
+| RoBERTa | 91.5% | 91.5% | 96.8% | 86.8% | 200 | 1 |
+| **DeBERTa** | **91.5%** | **91.9%** | **92.4%** | **91.5%** | 200 | 1 |
 
-| Model | Base Checkpoint | Parameters | Use Case |
-|---|---|---|---|
-| **DistilBERT** | `distilbert-base-uncased` | 66M | Fast inference, resource-constrained environments |
-| **RoBERTa** | `roberta-base` | 125M | High accuracy, rich BI insights |
-| **DeBERTa** | `microsoft/deberta-base` | 139M | Highest accuracy, disentangled attention |
+> DeBERTa achieves the best F1 score (91.9%), indicating the best balance between precision and recall.
 
-All models are fine-tuned for binary sentiment classification (Positive/Negative) with:
-- `id2label`: `{0: "Negative", 1: "Positive"}`
-- `label2id`: `{"Negative": 0, "Positive": 1}`
-- Sequence length: 128 tokens
-- Optimizer: AdamW with weight decay 0.01 and 100 warmup steps
+## Dataset Pipeline
 
----
+1. **Source**: Amazon Reviews (Kaggle `bittlingmayer/amazonreviews`) — 3.6M train, 400K test reviews
+2. **Conversion**: `convert_to_csv.py` converts fastText format to CSV
+3. **Preprocessing**: `preprocess_dataset.py` cleans text, removes duplicates, maps labels to binary (0/1), and splits data:
+   - **Train**: 70% (7,000 samples)
+   - **Validation**: 15% (1,500 samples) — used for early stopping and F1-based model selection
+   - **Test**: 15% (1,500 samples) — held-out, used only for final evaluation
+4. **No data leakage**: Train, validation, and test sets are strictly separated
 
-## 🏋️ Training Pipeline
+## Training Pipeline
 
-The training script (`train_models.py`) uses Hugging Face `Trainer` API:
+### Standard Training
+```bash
+# Train a single model
+python train_models.py --model distilbert --epochs 2 --sample_limit 5000
 
-1. Load preprocessed train/val/test splits
-2. Tokenize with model-specific tokenizer (max_length=128)
-3. Fine-tune with `TrainingArguments` (eval at each epoch, save best model by accuracy)
-4. Evaluate on held-out test split
-5. Save model checkpoint, tokenizer, metrics, and metadata
+# Train all three models
+python train_models.py --model all --epochs 2 --sample_limit 5000
+```
 
-### Saved Artifacts Per Model
+### DeBERTa Optimization
+```bash
+# Run hyperparameter optimization (3 configs, validation F1 selection)
+python optimize_deberta.py --sample_limit 1000
+```
 
-- `model.safetensors` — Model weights
-- `config.json` — Model configuration with label mapping
-- `tokenizer.json` — Tokenizer
-- `metadata.json` — Training metadata (seed, samples, epochs, timestamp, metrics)
+The optimization script:
+1. Evaluates 3 hyperparameter configurations (varying LR, epochs, warmup, weight_decay)
+2. Selects the best config by validation F1 score
+3. Evaluates the final model on the held-out test set
+4. Saves results to `models/deberta_optimization_log.json`
 
-### Global Metrics File
+### Training Configuration
+Each model's training config is saved in `metrics.json` and includes:
+- Learning rate, batch size, warmup ratio, weight decay
+- Max sequence length, epochs, random seed
+- Validation F1 score and test metrics
 
-`models/metrics.json` contains evaluation results for all trained models with: accuracy, F1, precision, recall, test sample count, training epochs, seed, and timestamp.
-
----
-
-## 🤖 AI Agent
-
-The AI Agent (`agent.py`) is a keyword-scored orchestrator that:
-
-1. **Receives** a natural-language business question
-2. **Classifies** the question into one of 5 tool categories using weighted keyword matching
-3. **Routes** to the appropriate analysis tool
-4. **Generates** a structured answer with supporting data and recommendations
-
-### Agent Tools
-
-| Tool | Description | Example Question |
-|---|---|---|
-| **Sentiment Analysis** | Analyzes sentiment distribution | "What percentage of customers are unhappy?" |
-| **Aspect Analysis** | Identifies top praise/complaint areas | "What are customers most unhappy about?" |
-| **Business Intelligence** | Comprehensive BI summary | "Give me an overall business summary." |
-| **Model Metrics** | Model performance comparison | "Which model performs best?" |
-| **Recommendations** | Actionable business suggestions | "What should we do to improve?" |
-
----
-
-## 📊 Business Intelligence
-
-The BI engine analyzes reviews from the test split and generates:
-
-- **Sentiment distribution** — Positive/Negative counts and percentages
-- **Aspect analysis** — Quality & Durability, Pricing & Value, Customer Support & Delivery, Usability & Design
-- **Keyword frequency** — Top positive and negative keywords
-- **Satisfaction level** — Excellent / Good / Fair / Poor (based on positive ratio)
-- **Data-driven recommendations** — Triggered when negative sentiment for an aspect exceeds 40%
-
----
-
-## 📈 Evaluation Metrics
-
-All metrics come from actual model evaluation on the held-out test split. No values are hard-coded.
-
-The Model Comparison dashboard shows for each model:
-- Accuracy, F1-Score, Precision, Recall
-- Test sample count
-- Base checkpoint name
-- Training timestamp
-- 🏆 Best Model indicator (by highest F1 score)
-
----
-
-## 🚀 Installation
+## Setup & Running
 
 ### Prerequisites
-
-- Python 3.10+
-- pip
-
-### Install Dependencies
-
 ```bash
-pip install fastapi uvicorn transformers torch pandas scikit-learn tiktoken
+pip install torch transformers fastapi uvicorn pandas scikit-learn
 ```
 
-### Download Dataset
-
-Download the Amazon Reviews dataset from [Kaggle](https://www.kaggle.com/datasets/bittlingmayer/amazonreviews) and place `train.ft.txt` and `test.ft.txt` in the `Dataset/` folder.
-
----
-
-## ▶️ Running the Project
-
-### Step 1: Convert Dataset (if needed)
-
+### Quick Start
 ```bash
-python convert_to_csv.py
-```
-
-### Step 2: Preprocess Dataset
-
-```bash
+# 1. Preprocess dataset (if not already done)
 python preprocess_dataset.py
-```
 
-### Step 3: Train Models
+# 2. Train models (skip if checkpoints exist in models/)
+python train_models.py --model all --epochs 1 --sample_limit 1000
 
-```bash
-# Train all three models (1000 samples each for quick demo)
-python train_models.py --model all --sample_limit 1000
-
-# Train a specific model with more samples
-python train_models.py --model roberta --sample_limit 5000 --epochs 2
-```
-
-### Step 4: Start the Server
-
-```bash
+# 3. Start the server
 python -m uvicorn main:app --host 0.0.0.0 --port 8000
+
+# 4. Open dashboard
+# Navigate to http://localhost:8000
 ```
 
-Open [http://localhost:8000](http://localhost:8000) in your browser.
+### Testing
+```bash
+# With server running:
+python test_all_features.py
+```
 
----
+The test suite validates 9 categories:
+1. Mixed review inference (RoBERTa)
+2. Strict model validation (no heuristic fallback)
+3. CSV batch upload with failure stats
+4. Metrics endpoint (`_meta.best_model`, all model fields)
+5. BI failure accounting (`total_attempted`, `total_processed`, `failed_count`) + executive insight
+6. JSON export (includes `model_evaluation` + `executive_insight`)
+7. CSV export (includes Executive Insight + Model Evaluation sections)
+8. AI Agent intent routing (8 query patterns including compare/deploy)
+9. Model status endpoint (all 3 models available)
 
-## 📡 API Endpoints
+## API Endpoints
 
-| Method | Endpoint | Description |
-|---|---|---|
+| Method | Route | Description |
+|--------|-------|-------------|
 | `POST` | `/api/analyze` | Single review sentiment analysis |
-| `POST` | `/api/batch-analyze` | Batch review analysis (JSON body) |
-| `POST` | `/api/batch-upload` | CSV file upload for bulk analysis |
-| `GET`  | `/api/bi-report` | Generate Business Intelligence report |
-| `GET`  | `/api/metrics` | Get evaluation metrics for all models |
-| `GET`  | `/api/model-status` | Check which models are trained |
-| `POST` | `/api/agent` | AI Agent (natural-language queries) |
-| `GET`  | `/api/export` | Export BI report as JSON or CSV |
+| `POST` | `/api/batch-upload` | CSV batch analysis |
+| `GET` | `/api/bi-report` | Business intelligence report |
+| `POST` | `/api/agent` | AI Agent natural language query |
+| `GET` | `/api/metrics` | Model evaluation metrics |
+| `GET` | `/api/model-status` | Model availability status |
+| `GET` | `/api/export` | Export report as JSON or CSV |
 
-### Request/Response Examples
-
-**Single Review Analysis:**
-```json
-POST /api/analyze
-{
-  "text": "This product is amazing! Great quality and fast delivery.",
-  "model": "roberta"
-}
-
-Response:
-{
-  "text": "This product is amazing!...",
-  "model": "roberta",
-  "sentiment": "POSITIVE",
-  "score": 0.987,
-  "confidence": 98.7,
-  "aspects": [
-    {"aspect": "Quality & Durability", "sentiment": "POSITIVE", "matched_keywords": ["quality"]},
-    {"aspect": "Customer Support & Delivery", "sentiment": "POSITIVE", "matched_keywords": ["delivery"]}
-  ]
-}
-```
-
-**AI Agent Query:**
-```json
-POST /api/agent
-{
-  "question": "What are customers most unhappy about?",
-  "model": "distilbert"
-}
-
-Response:
-{
-  "task": "Aspect Analysis",
-  "tool_used": "Aspect Analysis Tool",
-  "answer": "\"Quality & Durability\" has the highest negative sentiment at 52.3%...",
-  "supporting_data": { ... },
-  "recommendations": [ ... ]
-}
-```
-
----
-
-## 💬 Example Queries for AI Agent
-
-| Query | Expected Tool |
-|---|---|
-| "What percentage of customers are unhappy?" | Sentiment Analysis |
-| "What are customers most unhappy about?" | Aspect Analysis |
-| "What is the biggest customer complaint?" | Aspect Analysis |
-| "Which model performs best?" | Model Metrics |
-| "Give me business recommendations." | Recommendations |
-| "Summarize the overall customer feedback." | Business Intelligence |
-
----
-
-## 📊 Results
-
-Results are dynamically generated from actual model evaluation. See `models/metrics.json` for the latest metrics after training.
-
-Example (with `--sample_limit 1000`):
-
-| Model | Accuracy | F1 | Precision | Recall |
-|---|---|---|---|---|
-| DistilBERT | 90.0% | 90.7% | 89.8% | 91.5% |
-| RoBERTa | 91.5% | 91.5% | 96.8% | 86.8% |
-| DeBERTa | *See metrics.json* | — | — | — |
-
-> These are sample results with limited training data. Results improve with `--sample_limit 5000+` and `--epochs 2-3`.
-
----
-
-## 🔮 Future Scope
-
-1. **Multi-class Sentiment** — Extend to 3-class (Positive/Neutral/Negative) or 5-star rating prediction
-2. **Attention-based Explainability** — Highlight which words contributed most to the sentiment decision
-3. **Real-time Data Ingestion** — Connect to live review sources (Amazon API, social media)
-4. **Generative AI Summaries** — Use an LLM to generate natural-language BI narratives
-5. **User Authentication** — Add login and role-based access for enterprise deployment
-6. **PDF Report Export** — Generate formatted PDF reports with charts
-7. **Fine-tuning with More Data** — Train with 50K+ samples and 3+ epochs for production accuracy
-
----
-
-## 📋 Technologies
-
-- **Backend**: FastAPI, Uvicorn
-- **ML**: Hugging Face Transformers, PyTorch, scikit-learn
-- **Frontend**: Vanilla HTML/CSS/JS, Chart.js, Font Awesome
-- **Design**: Inter + Outfit fonts, glassmorphism dark theme
-
----
-
-## 📄 License
-
-MIT License — see [LICENSE](LICENSE) for details.
+## Tech Stack
+- **Backend**: FastAPI + Uvicorn
+- **ML**: HuggingFace Transformers, PyTorch, scikit-learn
+- **Frontend**: HTML5, CSS3 (glassmorphism dark theme), JavaScript, Chart.js
+- **Dataset**: Amazon Reviews (binary sentiment classification)

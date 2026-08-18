@@ -47,9 +47,10 @@ class SentimentDataset(torch.utils.data.Dataset):
         return len(self.labels)
 
 
-def save_metrics(output_dir, model_name, test_metrics, train_samples, eval_samples, base_checkpoint, epochs, seed=42):
+def save_metrics(output_dir, model_name, test_metrics, val_metrics, train_samples, eval_samples, base_checkpoint, epochs, training_config, seed=42):
     """
     Saves evaluation metrics to models/metrics.json and per-model metadata.
+    Includes validation score, training config, and random seed.
     """
     metrics_file = os.path.join(output_dir, "metrics.json")
 
@@ -65,6 +66,8 @@ def save_metrics(output_dir, model_name, test_metrics, train_samples, eval_sampl
         "f1": round(test_metrics.get("eval_f1", 0.0), 4),
         "precision": round(test_metrics.get("eval_precision", 0.0), 4),
         "recall": round(test_metrics.get("eval_recall", 0.0), 4),
+        "validation_score": round(val_metrics.get("eval_f1", 0.0), 4),
+        "validation_accuracy": round(val_metrics.get("eval_accuracy", 0.0), 4),
         "test_samples": eval_samples,
         "train_samples": train_samples,
         "base_checkpoint": base_checkpoint,
@@ -72,6 +75,7 @@ def save_metrics(output_dir, model_name, test_metrics, train_samples, eval_sampl
         "eval_loss": round(test_metrics.get("eval_loss", 0.0), 4),
         "trained_at": datetime.datetime.now().isoformat(),
         "seed": seed,
+        "training_config": training_config,
     }
 
     all_metrics[model_name] = entry
@@ -79,7 +83,7 @@ def save_metrics(output_dir, model_name, test_metrics, train_samples, eval_sampl
     # Write combined metrics
     with open(metrics_file, 'w', encoding='utf-8') as f:
         json.dump(all_metrics, f, indent=2, ensure_ascii=False)
-    print(f"[✓] Metrics saved to {metrics_file}")
+    print(f"[\u2713] Metrics saved to {metrics_file}")
 
     # Write per-model metadata
     model_dir = os.path.join(output_dir, model_name)
@@ -92,13 +96,14 @@ def save_metrics(output_dir, model_name, test_metrics, train_samples, eval_sampl
         "train_samples": train_samples,
         "eval_samples": eval_samples,
         "training_epochs": epochs,
+        "training_config": training_config,
         "trained_at": datetime.datetime.now().isoformat(),
         "metrics": entry,
     }
     metadata_path = os.path.join(model_dir, "metadata.json")
     with open(metadata_path, 'w', encoding='utf-8') as f:
         json.dump(metadata, f, indent=2, ensure_ascii=False)
-    print(f"[✓] Model metadata saved to {metadata_path}")
+    print(f"[\u2713] Model metadata saved to {metadata_path}")
 
 
 def train_and_evaluate(model_name, dataset_dir, output_dir, epochs=1, batch_size=8, sample_limit=5000, seed=42):
@@ -164,19 +169,31 @@ def train_and_evaluate(model_name, dataset_dir, output_dir, epochs=1, batch_size
     model_output_dir = os.path.join(output_dir, model_name)
     os.makedirs(model_output_dir, exist_ok=True)
 
+    # Defaults for learning rate per model
+    lr_map = {
+        "distilbert": 2e-5,
+        "roberta": 2e-5,
+        "deberta": 1e-5
+    }
+    learning_rate = lr_map.get(model_name, 2e-5)
+    warmup_ratio = 0.1
+    weight_decay = 0.01
+    max_length = 128
+
     print("Configuring Trainer...")
     training_args = TrainingArguments(
         output_dir=model_output_dir,
         num_train_epochs=epochs,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
-        warmup_steps=100,
-        weight_decay=0.01,
+        learning_rate=learning_rate,
+        warmup_ratio=warmup_ratio,
+        weight_decay=weight_decay,
         logging_steps=50,
         eval_strategy="epoch",
         save_strategy="epoch",
         load_best_model_at_end=True,
-        metric_for_best_model="accuracy",
+        metric_for_best_model="f1",
         seed=seed,
         use_cpu=not torch.cuda.is_available()
     )
@@ -192,6 +209,11 @@ def train_and_evaluate(model_name, dataset_dir, output_dir, epochs=1, batch_size
     print("Starting fine-tuning...")
     trainer.train()
 
+    # Evaluate on validation set
+    print("Evaluating on validation data...")
+    val_metrics = trainer.evaluate(val_dataset)
+    print(f"Validation metrics: {val_metrics}")
+
     print("Evaluating on test data...")
     test_metrics = trainer.evaluate(test_dataset)
     print(f"Test metrics: {test_metrics}")
@@ -199,10 +221,21 @@ def train_and_evaluate(model_name, dataset_dir, output_dir, epochs=1, batch_size
     # Save tokenizer and model
     model.save_pretrained(model_output_dir)
     tokenizer.save_pretrained(model_output_dir)
-    print(f"[✓] Model saved to: {model_output_dir}")
+    print(f"[\u2713] Model saved to: {model_output_dir}")
+
+    # Training config dict for reproducibility
+    training_config = {
+        "learning_rate": learning_rate,
+        "batch_size": batch_size,
+        "warmup_ratio": warmup_ratio,
+        "weight_decay": weight_decay,
+        "max_length": max_length,
+        "epochs": epochs,
+        "seed": seed,
+    }
 
     # Save metrics to metrics.json and metadata.json
-    save_metrics(output_dir, model_name, test_metrics, train_samples, eval_samples, model_checkpoint, epochs, seed)
+    save_metrics(output_dir, model_name, test_metrics, val_metrics, train_samples, eval_samples, model_checkpoint, epochs, training_config, seed)
 
     return test_metrics
 

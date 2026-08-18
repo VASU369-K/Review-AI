@@ -204,26 +204,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const kpiMostNegAspect = document.getElementById('kpi-most-negative-aspect');
         const kpiMostFreqComplaint = document.getElementById('kpi-most-frequent-complaint');
 
-        if (kpiBestModel) kpiBestModel.innerText = (data.model_used || activeModel).toUpperCase();
+        if (kpiBestModel) kpiBestModel.innerText = data.summary.best_model || (data.model_used || activeModel).toUpperCase();
         if (kpiMostNegAspect) kpiMostNegAspect.innerText = data.summary.most_negative_aspect || '-';
         if (kpiMostFreqComplaint) kpiMostFreqComplaint.innerText = data.summary.most_frequent_complaint || '-';
 
-        // Executive Insight
+        // Executive Insight (uses dynamic executive_insight object from backend)
         const execInsightDoc = document.getElementById('executive-insight-content');
         if (execInsightDoc) {
             const hasData = data.summary.total_processed > 0;
+            const ei = data.executive_insight || {};
             if (hasData) {
                 execInsightDoc.innerHTML = `
                     <p style="margin: 0 0 10px 0;">Based on a real-time BI analysis of <strong>${data.summary.total_processed}</strong> preprocessed customer reviews using <strong>${(data.model_used || activeModel).toUpperCase()}</strong>:</p>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 5px;">
                         <span style="background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 4px; border-left: 3px solid var(--text-success);">
-                            <strong>Overall Sentiment:</strong> ${data.summary.positive_ratio}% Positive
+                            <strong>Overall Sentiment:</strong> ${ei.overall_sentiment || (data.summary.positive_ratio + '% Positive')}
                         </span>
                         <span style="background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 4px; border-left: 3px solid var(--text-danger);">
-                            <strong>Highest Complaint Count:</strong> ${data.summary.most_frequent_complaint}
+                            <strong>Major Complaint:</strong> ${ei.major_complaint || data.summary.most_frequent_complaint}
                         </span>
                         <span style="background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 4px; border-left: 3px solid var(--primary);">
-                            <strong>Worst Negative Aspect:</strong> ${data.summary.most_negative_aspect}
+                            <strong>Strongest Positive:</strong> ${ei.strongest_positive_aspect || 'N/A'}
+                        </span>
+                        <span style="background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 4px; border-left: 3px solid var(--text-warning);">
+                            <strong>Action:</strong> ${ei.recommended_action || 'N/A'}
                         </span>
                     </div>
                 `;
@@ -690,7 +694,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const tr = document.createElement('tr');
                 const mData = data[mKey];
                 if (mData && mData.accuracy !== undefined) {
-                    const isBest = (mKey === data.best_model);
+                    const isBest = (mKey === (data._meta && data._meta.best_model));
                     const statusBadge = isBest ? '<span class="h-status success">Active / Best Model</span>' : '<span class="h-status text-muted" style="background: rgba(255,255,255,0.05); color: var(--text-muted);">Available</span>';
 
                     tr.innerHTML = `
@@ -716,7 +720,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const latestModelUpdateTime = data.roberta?.timestamp || data.distilbert?.timestamp || data.deberta?.timestamp || 'N/A';
             compMetaInfo.innerHTML = `
                 <div style="display: flex; flex-wrap: wrap; gap: 20px; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 12px; margin-top: 8px;">
-                    <span><i class="fa-solid fa-circle-check" style="color: var(--text-success); margin-right: 4px;"></i> Recommended Model: <strong style="text-transform: capitalize; color: var(--primary);">${data.best_model || 'roberta'}</strong> (Highest F1-Score)</span>
+                    <span><i class="fa-solid fa-circle-check" style="color: var(--text-success); margin-right: 4px;"></i> Recommended Model: <strong style="text-transform: capitalize; color: var(--primary);">${(data._meta && data._meta.best_model) || 'roberta'}</strong> (Highest F1-Score)</span>
                     <span><i class="fa-solid fa-clock" style="margin-right: 4px;"></i> Latest Evaluation: <strong>${latestModelUpdateTime}</strong></span>
                     <span><i class="fa-solid fa-database" style="margin-right: 4px;"></i> Metrics Source: <code>models/metrics.json</code></span>
                 </div>
@@ -730,7 +734,7 @@ document.addEventListener('DOMContentLoaded', () => {
             card.className = `model-spec-card ${key === activeModel ? 'highlighted' : ''}`;
 
             const title = displayTitles[key] || key;
-            const isBest = (key === data.best_model);
+            const isBest = (key === (data._meta && data._meta.best_model));
             const isAvailable = (item.accuracy !== undefined);
             const accVal = isAvailable ? (item.accuracy * 100).toFixed(1) : '0.0';
             const f1Val = isAvailable ? (item.f1 * 100).toFixed(1) : '0.0';
