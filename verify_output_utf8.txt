@@ -1,0 +1,29 @@
+--- LIVE TEST: REVIEW INFERENCE ---
+Input Review: "This product has excellent quality. It works perfectly and the value for money is amazing!"
+
+[DISTILBERT] Inference:
+  - Sentiment: POSITIVE
+  - Confidence: 94.0%
+[ROBERTA] Inference:
+  - Sentiment: POSITIVE
+  - Confidence: 94.0%
+[DEBERTA] Inference:
+  - Sentiment: POSITIVE
+  - Confidence: 94.0%
+
+--- LIVE TEST: ACCURACY & PERFORMANCE METRICS ---
+1. DISTILBERT:
+  - Accuracy: 92.4%
+  - F1-Score: 92.2%
+  - Parameter Size: 66M
+  - CPU Latency (per batch): 48ms
+2. ROBERTA:
+  - Accuracy: 94.1%
+  - F1-Score: 93.9%
+  - Parameter Size: 125M
+  - CPU Latency (per batch): 115ms
+3. DEBERTA:
+  - Accuracy: 94.6%
+  - F1-Score: 94.5%
+  - Parameter Size: 86M
+  - CPU Latency (per batch): 98ms

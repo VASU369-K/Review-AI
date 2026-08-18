@@ -98,8 +98,26 @@ def preprocess_and_split(dataset_dir="Dataset", sample_size=100000, seed=42):
         if cleaned_txt:
             cleaned_records.append((mapped_label, cleaned_txt))
 
+    # Deduplicate by review text
+    before_dedup = len(cleaned_records)
+    seen_texts = set()
+    unique_records = []
+    for label, text in cleaned_records:
+        if text not in seen_texts:
+            seen_texts.add(text)
+            unique_records.append((label, text))
+    cleaned_records = unique_records
+    after_dedup = len(cleaned_records)
+    if before_dedup != after_dedup:
+        print(f"Removed {before_dedup - after_dedup} duplicate reviews.")
+
     total_records = len(cleaned_records)
     print(f"Total cleaned records: {total_records}")
+
+    # Label distribution summary
+    neg_count = sum(1 for l, _ in cleaned_records if l == 0)
+    pos_count = sum(1 for l, _ in cleaned_records if l == 1)
+    print(f"Label distribution: Negative (0) = {neg_count} ({neg_count/total_records*100:.1f}%), Positive (1) = {pos_count} ({pos_count/total_records*100:.1f}%)")
 
     # Split 70% Train, 15% Val, 15% Test
     train_end = int(total_records * 0.70)

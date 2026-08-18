@@ -1,0 +1,41 @@
+{
+  "distilbert": {
+    "accuracy": 0.9,
+    "f1": 0.9065,
+    "precision": 0.8981,
+    "recall": 0.9151,
+    "test_samples": 200,
+    "train_samples": 1000,
+    "base_checkpoint": "distilbert-base-uncased",
+    "training_epochs": 1,
+    "eval_loss": 0.2713,
+    "trained_at": "2026-08-18T07:50:16.522307",
+    "seed": 42
+  },
+  "roberta": {
+    "accuracy": 0.915,
+    "f1": 0.9154,
+    "precision": 0.9684,
+    "recall": 0.8679,
+    "test_samples": 200,
+    "train_samples": 1000,
+    "base_checkpoint": "roberta-base",
+    "training_epochs": 1,
+    "eval_loss": 0.4181,
+    "trained_at": "2026-08-18T08:01:50.054369",
+    "seed": 42
+  },
+  "deberta": {
+    "accuracy": 0.915,
+    "f1": 0.9194,
+    "precision": 0.9238,
+    "recall": 0.9151,
+    "test_samples": 200,
+    "train_samples": 1000,
+    "base_checkpoint": "microsoft/deberta-base",
+    "training_epochs": 1,
+    "eval_loss": 0.2601,
+    "trained_at": "2026-08-18T10:40:13.338676",
+    "seed": 42
+  }
+}

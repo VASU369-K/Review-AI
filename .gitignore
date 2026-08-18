@@ -1,16 +1,40 @@
-# Python/Uvicorn cache
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
 
-# Local review datasets (excluding large >100MB files from git tracking)
-Dataset/
+# Virtual environments
+venv/
+.env/
 
-# Temp test files and logs
-*verify*output*
-*verify_live_run.txt
-output.txt
-temp_verify_live_output.txt
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# Local OS files
-.DS_Store
+# Dataset (large files)
+Dataset/*.csv
+Dataset/*.txt
+*.parquet
+
+# Fine-tuned model weights (large files, retrain locally)
+models/distilbert/
+models/roberta/
+models/deberta/
+models/*/checkpoint-*/
+
+# Keep metrics.json in version control
+!models/metrics.json
+
+# Logs
+*.log
+wandb/
+
+# OS files
 Thumbs.db
+.DS_Store
+desktop.ini
